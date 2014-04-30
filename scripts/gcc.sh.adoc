@@ -59,6 +59,7 @@ If $CC is blank (& unset?) and the architecture of the machine running the scrip
    150	fi
 ----
 Set the value of the variable $GCC_TEST to the result of the command.
+
 * First set the shell language to English (LC_ALL=C)
 * Run the version command of gcc (or the cross compiler if $CC is set)
 * Use grep to find the "Target:" line & then check for "arm"
