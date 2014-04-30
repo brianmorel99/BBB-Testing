@@ -1,3 +1,5 @@
+[source,sh]
+----
      1	#!/bin/sh -e
      2	#
      3	# Copyright (c) 2009-2013 Robert Nelson <robertcnelson@gmail.com>
@@ -205,3 +207,4 @@
    205	file_backup
    206	install_files
    207	
+----

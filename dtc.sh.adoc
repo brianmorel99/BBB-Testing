@@ -1,9 +1,20 @@
+==== Taken from: https://raw.github.com/RobertCNelson/tools/master/pkgs/dtc.sh
+
+Shell arguement “-e” tells the shell to exit if anything returns non-zero (error) on exit
+[source, sh]
+----
      1	#!/bin/sh -e
-     2	
+----
+LC_ALL=C makes sure the shell is in English language mode.  Function uses’s dpkg to print installed packages, which is trimmed just to the 2nd column of the output (package name) with awk, and then uses grep to search to see if it’s installed.  If not, add the $pkg variable to the list of packages that need to be installed. 
+[source,sh]
+----
      3	check_dpkg () {
      4		LC_ALL=C dpkg --list | awk '{print $2}' | grep "^${pkg}" >/dev/null || deb_pkgs="${deb_pkgs}${pkg} "
      5	}
-     6	
+----
+Check for the following packages: bison, build-essential, flex, git-core
+[source,sh]
+----
      7	unset deb_pkgs
      8	pkg="bison"
      9	check_dpkg
@@ -13,51 +24,83 @@
     13	check_dpkg
     14	pkg="git-core"
     15	check_dpkg
-    16	
+----
+If any of the above cheked packages were missing, install them.
+[source,sh]
+----
     17	if [ "${deb_pkgs}" ] ; then
     18		echo "Installing: ${deb_pkgs}"
     19		sudo apt-get update
     20		sudo apt-get -y install ${deb_pkgs}
     21		sudo apt-get clean
     22	fi
-    23	
+----
+Variables for checking out particular commit in git
+[source,sh]
+----
     24	#git_sha="origin/master"
     25	#git_sha="27cdc1b16f86f970c3c049795d4e71ad531cca3d"
     26	#git_sha="fdc7387845420168ee5dd479fbe4391ff93bddab"
     27	git_sha="65cc4d2748a2c2e6f27f1cf39e07a5dbabd80ebf"
     28	project="dtc"
     29	server="git://git.kernel.org/pub/scm/linux/kernel/git/jdl"
-    30	
+----
+Check file ~/git/dtc/.git/config, if it’s doesn’t exist, clone the repository from git.kernel.org/pub/scm/linux/kernel/git/jdl
+[source,sh]
+----
     31	if [ ! -f ${HOME}/git/${project}/.git/config ] ; then
     32		git clone ${server}/${project}.git ${HOME}/git/${project}/
     33	fi
-    34	
+----
+Check file ~/git/dtc/.git/config, if it’s doesn’t exist still, exit with error
+[source,sh]
+----
     35	if [ ! -f ${HOME}/git/${project}/.git/config ] ; then
     36		rm -rf ${HOME}/git/${project}/ || true
     37		echo "error: git failure, try re-runing"
     38		exit
     39	fi
-    40	
+----
+Check to see if the git repository that was checked out was from an old git source, if so, change to updated git repository
+[source,sh]
+----
     41	unset old_address
     42	old_address=$(cat ${HOME}/git/${project}/.git/config | grep "jdl.com" || true)
     43	if [ ! "x${old_address}" = "x" ] ; then
     44		sed -i -e 's:git.jdl.com/software:git.kernel.org/pub/scm/linux/kernel/git/jdl:g' ${HOME}/git/${project}/.git/config
     45	fi
-    46	
+----
+Change into the dtc project directory, clean & update.
+[source,sh]
+----
     47	cd ${HOME}/git/${project}/
     48	make clean
     49	git checkout master -f
     50	git pull || true
-    51	
+----
+Test to see if a build version of the git_sha branch exists, if so delete it.
+[source,sh]
+----
     52	test_for_branch=$(git branch --list ${git_sha}-build)
     53	if [ "x${test_for_branch}" != "x" ] ; then
     54		git branch ${git_sha}-build -D
     55	fi
-    56	
+----
+Checkout specific branch / commit into a new build branch
+[source,sh]
+----
     57	git checkout ${git_sha} -b ${git_sha}-build
+----
+Downlaod a fix from RoberCNelson git branch
+[source,sh]
+----
     58	git pull git://github.com/RobertCNelson/dtc.git dtc-fixup-65cc4d2
-    59	
+----
+Prepare to build, then Build & Install to /usr/local
+[source,sh]
+----
     60	make clean
     61	make PREFIX=/usr/local/ CC=gcc CROSS_COMPILE= all
     62	echo "Installing into: /usr/local/bin/"
     63	sudo make PREFIX=/usr/local/ install
+----

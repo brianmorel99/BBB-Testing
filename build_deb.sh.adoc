@@ -1,3 +1,5 @@
+[source,sh]
+----
      1	#!/bin/sh -e
      2	#
      3	# Copyright (c) 2009-2014 Robert Nelson <robertcnelson@gmail.com>
@@ -214,3 +216,4 @@
    214	if [ "x${DTBS}" = "xenable" ] ; then
    215		make_dtbs_pkg
    216	fi
+----

@@ -1,3 +1,5 @@
+[source,sh]
+----
      1	#!/bin/bash -e
      2	#
      3	# Copyright (c) 2012-2014 Robert Nelson <robertcnelson@gmail.com>
@@ -300,3 +302,4 @@
    300		echo ""
    301	fi
    302	
+----

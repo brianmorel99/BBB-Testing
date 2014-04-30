@@ -1,3 +1,5 @@
+[source,sh]
+----
      1	#!/bin/sh
      2	#
      3	ARCH=$(uname -m)
@@ -40,3 +42,4 @@
     40	BUILDREV=1.0
     41	DISTRO=cross
     42	DEBARCH=armhf
+----

@@ -1,3 +1,5 @@
+[source,sh]
+----
      1	#!/bin/sh
      2	#copy as "system.sh" and tweak for your system
      3	
@@ -67,3 +69,4 @@
     67	###ADVANCED: AUTO_BUILD: Easier integration with Jenkins/Buildbot/etc..
     68	#
     69	#AUTO_BUILD=1
+----

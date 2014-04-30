@@ -1,3 +1,5 @@
+[source,sh]
+----
      1	#!/bin/sh -e
      2	
      3	DIR=$PWD
@@ -279,3 +281,4 @@
    279	check_config_disable
    280	
    281	#
+----

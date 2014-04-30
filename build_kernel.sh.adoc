@@ -39,7 +39,7 @@ Create a sub-directory for build results.
 ----
     25	mkdir -p ${DIR}/deploy/
 ----
-Call a Host detection Script.  This basically makes sure required pakages are installed.
+Call a Host detection Script
 [source,sh]
 ----
    203	/bin/sh -e ${DIR}/tools/host_det.sh || { exit 1 ; }

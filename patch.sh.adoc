@@ -1,3 +1,5 @@
+[source,sh]
+----
      1	#!/bin/sh
      2	#
      3	# Copyright (c) 2009-2013 Robert Nelson <robertcnelson@gmail.com>
@@ -127,3 +129,4 @@
    127	#rt
    128	
    129	echo "patch.sh ran successful"
+----
