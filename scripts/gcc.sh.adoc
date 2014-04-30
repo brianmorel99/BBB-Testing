@@ -1,7 +1,9 @@
-[source,sh]
+===== Original File
+* https://raw.githubusercontent.com/RobertCNelson/linux-dev/am33x-v3.14/scripts/gcc.sh
+
+Copyright notice of Excellent Script !!
+[source, sh]
 ----
-     1	#!/bin/sh -e
-     2	#
      3	# Copyright (c) 2009-2014 Robert Nelson <robertcnelson@gmail.com>
      4	#
      5	# Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -21,41 +23,149 @@
     19	# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
     20	# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
     21	# THE SOFTWARE.
-    22	
+----
+Shell arguement “-e” tells the shell to exit if anything returns non-zero (error) on exit
+[source,sh]
+----
+     1	#!/bin/sh -e
+----
+Set $ARCH variable to the architecture of the current machine.
+[source,sh]
+----
     23	ARCH=$(uname -m)
+----
+Set $DIR variable to the directory the script was called from.
+[source,sh]
+----
     24	DIR=$PWD
-    25	
+----
+Run the commands in the script file "system.sh" in the current shell session.
+[source,sh]
+----
     26	. ${DIR}/system.sh
-    27	
+----
+Run the commands in the script file "version.sh" in the current shell session.
+[source,sh]
+----
     28	#For:
     29	#toolchain
     30	. ${DIR}/version.sh
-    31	
-    32	dl_gcc_generic () {
-    33		WGET="wget -c --directory-prefix=${DIR}/dl/"
-    34		if [ ! -f ${DIR}/dl/${directory}/${datestamp} ] ; then
-    35			echo "Installing: ${toolchain_name}"
-    36			echo "-----------------------------"
-    37			${WGET} ${site}/${version}/${filename}
-    38			if [ -d ${DIR}/dl/${directory} ] ; then
-    39				rm -rf ${DIR}/dl/${directory} || true
-    40			fi
-    41			tar -xf ${DIR}/dl/${filename} -C ${DIR}/dl/
-    42			if [ -f ${DIR}/dl/${directory}/${binary}gcc ] ; then
-    43				touch ${DIR}/dl/${directory}/${datestamp}
-    44			fi
-    45		fi
-    46	
-    47		if [ "x${ARCH}" = "xarmv7l" ] ; then
-    48			#using native gcc
-    49			CC=
-    50		else
-    51			CC="${DIR}/dl/${directory}/${binary}"
-    52		fi
-    53	}
-    54	
+----
+If $CC is blank (& unset?) and the architecture of the machine running the script is "armv7l" call the gcc_toolchain function
+[source,sh]
+----
+   148	if [ "x${CC}" = "x" ] && [ "x${ARCH}" != "xarmv7l" ] ; then
+   149		gcc_toolchain
+   150	fi
+----
+Set the value of the variable $GCC_TEST to the result of the command.
+* First set the shell language to English (LC_ALL=C)
+* Run the version command of gcc (or the cross compiler if $CC is set)
+* Use grep to find the "Target:" line & then check for "arm"
+* The "or true" portion is to make sure the script doesn't exit because grep returns an error.
+
+[source,sh]
+----
+   152	GCC_TEST=$(LC_ALL=C ${CC}gcc -v 2>&1 | grep "Target:" | grep arm || true)
+----
+Test to see if $GCC_TEST was blank after the above.  If so print error message & call gcc_toolchain function.
+[source,sh]
+----
+   154	if [ "x${GCC_TEST}" = "x" ] ; then
+   155		echo "-----------------------------"
+   156		echo "scripts/gcc: Error: The GCC ARM Cross Compiler you setup in system.sh (CC variable) is invalid."
+   157		echo "-----------------------------"
+   158		gcc_toolchain
+----
+
+gcc_toolchain function basically sets up the variables for the dl_gcc_generic function, based on switching the $toolchain variable (set through verison.sh).
+[source,sh]
+----
     55	gcc_toolchain () {
     56		case "${toolchain}" in
+   125		gcc_linaro_gnueabihf_4_8)
+   126			#https://releases.linaro.org/14.03/components/toolchain/binaries/gcc-linaro-arm-linux-gnueabihf-4.8-2014.03_linux.tar.xz
+   127			gcc_version="4.8"
+   128			release="2014.03"
+   129			toolchain_name="gcc-linaro-arm-linux-gnueabihf"
+   130			site="https://releases.linaro.org"
+   131			version="14.03/components/toolchain/binaries"
+   132			directory="${toolchain_name}-${gcc_version}-${release}_linux"
+   133			filename="${directory}.tar.xz"
+   134			datestamp="${release}-${toolchain_name}"
+   135	
+   136			binary="bin/arm-linux-gnueabihf-"
+   137			;;
+----
+Now that the variables are all set, call the dl_gcc_generic fucntion
+[source,sh]
+----
+   145		dl_gcc_generic
+----
+Looks confusing, but basically uses above variables to download a binary of the cross compiler.
+[source,sh]
+----
+   32	dl_gcc_generic () {
+   33		WGET="wget -c --directory-prefix=${DIR}/dl/"
+   34		if [ ! -f ${DIR}/dl/${directory}/${datestamp} ] ; then
+   35			echo "Installing: ${toolchain_name}"
+   36			echo "-----------------------------"
+   37			${WGET} ${site}/${version}/${filename}
+   38			if [ -d ${DIR}/dl/${directory} ] ; then
+   39				rm -rf ${DIR}/dl/${directory} || true
+   40			fi
+   41			tar -xf ${DIR}/dl/${filename} -C ${DIR}/dl/
+   42			if [ -f ${DIR}/dl/${directory}/${binary}gcc ] ; then
+   43				touch ${DIR}/dl/${directory}/${datestamp}
+   44			fi
+   45		fi
+----
+If we are on arm architecture, leave the $CC variable alone.
+[source,sh]
+----
+   47		if [ "x${ARCH}" = "xarmv7l" ] ; then
+   48			#using native gcc
+   49			CC=
+   50		else
+----
+Set $CC variable to the name & path of the binary of the cross compiler just downloaded.
+[source,sh]
+----
+   51			CC="${DIR}/dl/${directory}/${binary}"
+   52		fi
+----
+Exit of the dl_gcc_generic function.
+[source,sh]
+----
+   53	}
+----
+Exit of gcc_toolchain function.
+[source,sh]
+----
+   146	}
+----
+Comming out of the if block that caused the gcc_toolchain function to be called.
+[source,sh]
+----
+   159	fi
+----
+If user had $CC variable set in their system.sh script, you get hear without downloading a cross compiler.
+Otherwise, you downloaded the current prefered cross compiler.
+Eitherway print out the version string of the compiler that is set up to use.
+[source,sh]
+----
+   161	echo "-----------------------------"
+   162	echo "scripts/gcc: Using: `LC_ALL=C ${CC}gcc --version`"
+   163	echo "-----------------------------"
+----
+This creates a file ".CC" in the directory where the script was called from.  This file has a statment which sets an environment variable $CC with the correct value determined by this script.
+[source,sh]
+----
+   164	echo "CC=${CC}" > ${DIR}/.CC
+----
+This is the balance of the switch options for gcc_toolchain fuctions
+[source,sh]
+----
     57		arm9_gcc_4_7)
     58			#https://launchpad.net/gcc-arm-embedded/+download
     59			#https://launchpad.net/gcc-arm-embedded/4.7/4.7-2013-q3-update/+download/gcc-arm-none-eabi-4_7-2013q3-20130916-linux.tar.bz2
@@ -124,44 +234,14 @@
    122	
    123			binary="bin/arm-linux-gnueabihf-"
    124			;;
-   125		gcc_linaro_gnueabihf_4_8)
-   126			#https://releases.linaro.org/14.03/components/toolchain/binaries/gcc-linaro-arm-linux-gnueabihf-4.8-2014.03_linux.tar.xz
-   127			gcc_version="4.8"
-   128			release="2014.03"
-   129			toolchain_name="gcc-linaro-arm-linux-gnueabihf"
-   130			site="https://releases.linaro.org"
-   131			version="14.03/components/toolchain/binaries"
-   132			directory="${toolchain_name}-${gcc_version}-${release}_linux"
-   133			filename="${directory}.tar.xz"
-   134			datestamp="${release}-${toolchain_name}"
-   135	
-   136			binary="bin/arm-linux-gnueabihf-"
-   137			;;
+----
+Fallthrough case.
+[source,sh]
+----
    138		*)
    139			echo "bug: maintainer forgot to set:"
    140			echo "toolchain=\"xzy\" in version.sh"
    141			exit 1
    142			;;
    143		esac
-   144	
-   145		dl_gcc_generic
-   146	}
-   147	
-   148	if [ "x${CC}" = "x" ] && [ "x${ARCH}" != "xarmv7l" ] ; then
-   149		gcc_toolchain
-   150	fi
-   151	
-   152	GCC_TEST=$(LC_ALL=C ${CC}gcc -v 2>&1 | grep "Target:" | grep arm || true)
-   153	
-   154	if [ "x${GCC_TEST}" = "x" ] ; then
-   155		echo "-----------------------------"
-   156		echo "scripts/gcc: Error: The GCC ARM Cross Compiler you setup in system.sh (CC variable) is invalid."
-   157		echo "-----------------------------"
-   158		gcc_toolchain
-   159	fi
-   160	
-   161	echo "-----------------------------"
-   162	echo "scripts/gcc: Using: `LC_ALL=C ${CC}gcc --version`"
-   163	echo "-----------------------------"
-   164	echo "CC=${CC}" > ${DIR}/.CC
 ____

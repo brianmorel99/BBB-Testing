@@ -1,10 +1,20 @@
+===== Original File
+* https://raw.githubusercontent.com/RobertCNelson/linux-dev/am33x-v3.14/system.sh.sample
+
+This is the basic "coniguration" script for controlling the other scripts.
 [source,sh]
 ----
      1	#!/bin/sh
      2	#copy as "system.sh" and tweak for your system
-     3	
+----
+Check the machine or architecture of the computer running the script & save in $ARCH variable
+[source,sh]
+----
      4	ARCH=$(uname -m)
-     5	
+----
+If the "uname -m" command is "armv7l"" cross compiling is not needed, so the native toolchain will work.  Set $CC variable as blank.
+[source,sh]
+----
      6	#ARM Native gcc compiler (running gcc on arm target)
      7	if [ "x${ARCH}" = "xarmv7l" ] ; then
      8		#Native arm gcc compiler
