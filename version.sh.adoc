@@ -1,0 +1,42 @@
+     1	#!/bin/sh
+     2	#
+     3	ARCH=$(uname -m)
+     4	
+     5	if [ $(which nproc) ] ; then
+     6		CORES=$(nproc)
+     7	else
+     8		CORES=1
+     9	fi
+    10	
+    11	#Debian 7 (Wheezy): git version 1.7.10.4 and later needs "--no-edit"
+    12	unset GIT_OPTS
+    13	unset GIT_NOEDIT
+    14	LC_ALL=C git help pull | grep -m 1 -e "--no-edit" >/dev/null 2>&1 && GIT_NOEDIT=1
+    15	
+    16	if [ "${GIT_NOEDIT}" ] ; then
+    17		GIT_OPTS="${GIT_OPTS} --no-edit"
+    18	fi
+    19	
+    20	config="omap2plus_defconfig"
+    21	
+    22	#toolchain="arm9_gcc_4_7"
+    23	#toolchain="gcc_arm_embedded_4_8"
+    24	#toolchain="gcc_linaro_eabi_4_8"
+    25	#toolchain="gcc_linaro_gnueabi_4_6"
+    26	#toolchain="gcc_linaro_gnueabihf_4_7"
+    27	toolchain="gcc_linaro_gnueabihf_4_8"
+    28	
+    29	#Kernel/Build
+    30	KERNEL_REL=3.14
+    31	KERNEL_TAG=${KERNEL_REL}.1
+    32	BUILD=bone2
+    33	
+    34	#v3.X-rcX + upto SHA
+    35	#KERNEL_SHA="e6036c0b88962df82a8853971b86a55f09faef40"
+    36	
+    37	#git branch
+    38	BRANCH="am33x-v3.14"
+    39	
+    40	BUILDREV=1.0
+    41	DISTRO=cross
+    42	DEBARCH=armhf

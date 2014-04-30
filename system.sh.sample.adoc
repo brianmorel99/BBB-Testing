@@ -1,0 +1,69 @@
+     1	#!/bin/sh
+     2	#copy as "system.sh" and tweak for your system
+     3	
+     4	ARCH=$(uname -m)
+     5	
+     6	#ARM Native gcc compiler (running gcc on arm target)
+     7	if [ "x${ARCH}" = "xarmv7l" ] ; then
+     8		#Native arm gcc compiler
+     9		CC=
+    10	fi
+    11	
+    12	###REQUIRED:
+    13	
+    14	#ARM GCC CROSS Compiler:
+    15	#if CC is not set, a known working linaro based gcc compiler will be downloaded and utilized.
+    16	#CC=<enter full path>/bin/arm-none-eabi-
+    17	#CC=<enter full path>/bin/arm-linux-gnueabi-
+    18	#CC=<enter full path>/bin/arm-linux-gnueabihf-
+    19	
+    20	###OPTIONAL:
+    21	
+    22	###OPTIONAL: LINUX_GIT: specify location of locally cloned git tree.
+    23	#
+    24	#LINUX_GIT=/home/user/linux-stable/
+    25	
+    26	###OPTIONAL: ZRELADDR: used by mkimage when copying files to target
+    27	# with: ./tools/install_kernel.sh...
+    28	#
+    29	##For TI: OMAP3/4/AM35xx
+    30	#ZRELADDR=0x80008000
+    31	#
+    32	##For Freescale: i.mx51:
+    33	#ZRELADDR=0x90008000
+    34	#
+    35	##For Freescale: i.mx53:
+    36	#ZRELADDR=0x70008000
+    37	#
+    38	##For Freescale: i.mx6q/dl/solo:
+    39	#ZRELADDR=0x10008000
+    40	#
+    41	##For Freescale: i.mx6sl:
+    42	#ZRELADDR=0x80008000
+    43	#
+    44	##For Atmel: AT91 & SAMA5
+    45	#ZRELADDR=0x20008000
+    46	#
+    47	##For Atmel: AT91SAM9G45
+    48	#ZRELADDR=0x70008000
+    49	
+    50	###OPTIONAL: MMC: (REQUIRED FOR RUNNING: tools/install_kernel.sh)
+    51	#Note: This operates on raw disks, NOT PARTITIONS..
+    52	#
+    53	#WRONG: MMC=/dev/mmcblk0p1
+    54	#CORRECT: MMC=/dev/mmcblk0
+    55	#
+    56	#WRONG: MMC=/dev/sde1
+    57	#CORRECT: MMC=/dev/sde
+    58	#
+    59	#MMC=/dev/sde
+    60	
+    61	###ADVANCED:
+    62	
+    63	###ADVANCED: RUN_BISECT: used with ./scripts/bisect.sh
+    64	#
+    65	#RUN_BISECT=1
+    66	
+    67	###ADVANCED: AUTO_BUILD: Easier integration with Jenkins/Buildbot/etc..
+    68	#
+    69	#AUTO_BUILD=1

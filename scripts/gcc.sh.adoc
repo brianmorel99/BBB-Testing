@@ -1,0 +1,164 @@
+     1	#!/bin/sh -e
+     2	#
+     3	# Copyright (c) 2009-2014 Robert Nelson <robertcnelson@gmail.com>
+     4	#
+     5	# Permission is hereby granted, free of charge, to any person obtaining a copy
+     6	# of this software and associated documentation files (the "Software"), to deal
+     7	# in the Software without restriction, including without limitation the rights
+     8	# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+     9	# copies of the Software, and to permit persons to whom the Software is
+    10	# furnished to do so, subject to the following conditions:
+    11	#
+    12	# The above copyright notice and this permission notice shall be included in
+    13	# all copies or substantial portions of the Software.
+    14	#
+    15	# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+    16	# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+    17	# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+    18	# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+    19	# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+    20	# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+    21	# THE SOFTWARE.
+    22	
+    23	ARCH=$(uname -m)
+    24	DIR=$PWD
+    25	
+    26	. ${DIR}/system.sh
+    27	
+    28	#For:
+    29	#toolchain
+    30	. ${DIR}/version.sh
+    31	
+    32	dl_gcc_generic () {
+    33		WGET="wget -c --directory-prefix=${DIR}/dl/"
+    34		if [ ! -f ${DIR}/dl/${directory}/${datestamp} ] ; then
+    35			echo "Installing: ${toolchain_name}"
+    36			echo "-----------------------------"
+    37			${WGET} ${site}/${version}/${filename}
+    38			if [ -d ${DIR}/dl/${directory} ] ; then
+    39				rm -rf ${DIR}/dl/${directory} || true
+    40			fi
+    41			tar -xf ${DIR}/dl/${filename} -C ${DIR}/dl/
+    42			if [ -f ${DIR}/dl/${directory}/${binary}gcc ] ; then
+    43				touch ${DIR}/dl/${directory}/${datestamp}
+    44			fi
+    45		fi
+    46	
+    47		if [ "x${ARCH}" = "xarmv7l" ] ; then
+    48			#using native gcc
+    49			CC=
+    50		else
+    51			CC="${DIR}/dl/${directory}/${binary}"
+    52		fi
+    53	}
+    54	
+    55	gcc_toolchain () {
+    56		case "${toolchain}" in
+    57		arm9_gcc_4_7)
+    58			#https://launchpad.net/gcc-arm-embedded/+download
+    59			#https://launchpad.net/gcc-arm-embedded/4.7/4.7-2013-q3-update/+download/gcc-arm-none-eabi-4_7-2013q3-20130916-linux.tar.bz2
+    60	
+    61			toolchain_name="gcc-arm-none-eabi"
+    62			site="https://launchpad.net/gcc-arm-embedded"
+    63			version="4.7/4.7-2013-q3-update/+download"
+    64			version_date="20130916"
+    65			directory="${toolchain_name}-4_7-2013q3"
+    66			filename="${directory}-${version_date}-linux.tar.bz2"
+    67			datestamp="${version_date}-${toolchain_name}"
+    68	
+    69			binary="bin/arm-none-eabi-"
+    70			;;
+    71		gcc_arm_embedded_4_8)
+    72			#https://launchpad.net/gcc-arm-embedded/+download
+    73			#https://launchpad.net/gcc-arm-embedded/4.8/4.8-2013-q4-major/+download/gcc-arm-none-eabi-4_8-2013q4-20131204-linux.tar.bz2
+    74	
+    75			toolchain_name="gcc-arm-none-eabi"
+    76			site="https://launchpad.net/gcc-arm-embedded"
+    77			version="4.8/4.8-2013-q4-major/+download"
+    78			version_date="20131204"
+    79			directory="${toolchain_name}-4_8-2013q4"
+    80			filename="${directory}-${version_date}-linux.tar.bz2"
+    81			datestamp="${version_date}-${toolchain_name}"
+    82	
+    83			binary="bin/arm-none-eabi-"
+    84			;;
+    85		gcc_linaro_eabi_4_8)
+    86			#https://releases.linaro.org/14.03/components/toolchain/binaries/gcc-linaro-arm-none-eabi-4.8-2014.03_linux.tar.xz
+    87			gcc_version="4.8"
+    88			release="2014.03"
+    89			toolchain_name="gcc-linaro-arm-none-eabi"
+    90			site="https://releases.linaro.org"
+    91			version="14.03/components/toolchain/binaries"
+    92			directory="${toolchain_name}-${gcc_version}-${release}_linux"
+    93			filename="${directory}.tar.xz"
+    94			datestamp="${release}-${toolchain_name}"
+    95	
+    96			binary="bin/arm-none-eabi-"
+    97			;;
+    98		gcc_linaro_gnueabi_4_6)
+    99			#https://releases.linaro.org/12.03/components/toolchain/binaries/gcc-linaro-arm-linux-gnueabi-2012.03-20120326_linux.tar.bz2
+   100			release="2012.03"
+   101			toolchain_name="gcc-linaro-arm-linux-gnueabi"
+   102			site="https://releases.linaro.org"
+   103			version="12.03/components/toolchain/binaries"
+   104			version_date="20120326"
+   105			directory="${toolchain_name}-${release}-${version_date}_linux"
+   106			filename="${directory}.tar.bz2"
+   107			datestamp="${version_date}-${toolchain_name}"
+   108	
+   109			binary="bin/arm-linux-gnueabi-"
+   110			;;
+   111		gcc_linaro_gnueabihf_4_7)
+   112			#https://releases.linaro.org/13.04/components/toolchain/binaries/gcc-linaro-arm-linux-gnueabihf-4.7-2013.04-20130415_linux.tar.xz
+   113			gcc_version="4.7"
+   114			release="2013.04"
+   115			toolchain_name="gcc-linaro-arm-linux-gnueabihf"
+   116			site="https://releases.linaro.org"
+   117			version="13.04/components/toolchain/binaries"
+   118			version_date="20130415"
+   119			directory="${toolchain_name}-${gcc_version}-${release}-${version_date}_linux"
+   120			filename="${directory}.tar.xz"
+   121			datestamp="${version_date}-${toolchain_name}"
+   122	
+   123			binary="bin/arm-linux-gnueabihf-"
+   124			;;
+   125		gcc_linaro_gnueabihf_4_8)
+   126			#https://releases.linaro.org/14.03/components/toolchain/binaries/gcc-linaro-arm-linux-gnueabihf-4.8-2014.03_linux.tar.xz
+   127			gcc_version="4.8"
+   128			release="2014.03"
+   129			toolchain_name="gcc-linaro-arm-linux-gnueabihf"
+   130			site="https://releases.linaro.org"
+   131			version="14.03/components/toolchain/binaries"
+   132			directory="${toolchain_name}-${gcc_version}-${release}_linux"
+   133			filename="${directory}.tar.xz"
+   134			datestamp="${release}-${toolchain_name}"
+   135	
+   136			binary="bin/arm-linux-gnueabihf-"
+   137			;;
+   138		*)
+   139			echo "bug: maintainer forgot to set:"
+   140			echo "toolchain=\"xzy\" in version.sh"
+   141			exit 1
+   142			;;
+   143		esac
+   144	
+   145		dl_gcc_generic
+   146	}
+   147	
+   148	if [ "x${CC}" = "x" ] && [ "x${ARCH}" != "xarmv7l" ] ; then
+   149		gcc_toolchain
+   150	fi
+   151	
+   152	GCC_TEST=$(LC_ALL=C ${CC}gcc -v 2>&1 | grep "Target:" | grep arm || true)
+   153	
+   154	if [ "x${GCC_TEST}" = "x" ] ; then
+   155		echo "-----------------------------"
+   156		echo "scripts/gcc: Error: The GCC ARM Cross Compiler you setup in system.sh (CC variable) is invalid."
+   157		echo "-----------------------------"
+   158		gcc_toolchain
+   159	fi
+   160	
+   161	echo "-----------------------------"
+   162	echo "scripts/gcc: Using: `LC_ALL=C ${CC}gcc --version`"
+   163	echo "-----------------------------"
+   164	echo "CC=${CC}" > ${DIR}/.CC

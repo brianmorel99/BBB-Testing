@@ -1,0 +1,69 @@
+     1	#!/bin/sh -e
+     2	#
+     3	# Copyright (c) 2013 Robert Nelson <robertcnelson@gmail.com>
+     4	#
+     5	# Permission is hereby granted, free of charge, to any person obtaining a copy
+     6	# of this software and associated documentation files (the "Software"), to deal
+     7	# in the Software without restriction, including without limitation the rights
+     8	# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+     9	# copies of the Software, and to permit persons to whom the Software is
+    10	# furnished to do so, subject to the following conditions:
+    11	#
+    12	# The above copyright notice and this permission notice shall be included in
+    13	# all copies or substantial portions of the Software.
+    14	#
+    15	# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+    16	# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+    17	# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+    18	# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+    19	# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+    20	# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+    21	# THE SOFTWARE.
+    22	
+    23	DIR=$PWD
+    24	
+    25	#Yuck, this error script can be called two directories...
+    26	offset="/"
+    27	if [ -f ${DIR}/../version.sh ] ; then
+    28		. ${DIR}/../version.sh
+    29		offset="../"
+    30	fi
+    31	if [ -f ${DIR}/../../version.sh ] ; then
+    32		. ${DIR}/../../version.sh
+    33		offset="../../"
+    34	fi
+    35	
+    36	echo "-----------------------------"
+    37	echo "Script Error: please cut and paste the following into an email to: bugs@rcn-ee.com"
+    38	echo "**********************************************************"
+    39	echo "Error: [${ERROR_MSG}]"
+    40	
+    41	if [ -f "${DIR}/${offset}.git/config" ] ; then
+    42		gitrepo=$(cat "${DIR}/${offset}.git/config" | grep url | awk '{print $3}')
+    43		gitwhatchanged=$(cd ${offset} ; git whatchanged -1)
+    44		echo "git repo: [${gitrepo}]"
+    45		echo "-----------------------------"
+    46		echo "${gitwhatchanged}"
+    47		echo "-----------------------------"
+    48	else
+    49		if [ "${BRANCH}" ] ; then
+    50			echo "nongit: [${BRANCH}]"
+    51		else
+    52			echo "nongit: [master]"
+    53		fi
+    54	fi
+    55	
+    56	if [ ! "${KERNEL_SHA}" ] ; then
+    57		echo "kernel: [v${KERNEL_TAG}-${BUILD}]"
+    58	else
+    59		echo "kernel: [v${KERNEL_TAG}-${BUILD}] + [${KERNEL_SHA}]"
+    60	fi
+    61	
+    62	echo "uname -m"
+    63	uname -m
+    64	if [ $(which lsb_release) ] ; then
+    65		echo "lsb_release -a"
+    66		lsb_release -a
+    67	fi
+    68	echo "**********************************************************"
+    69	

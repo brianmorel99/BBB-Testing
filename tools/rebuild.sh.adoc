@@ -1,0 +1,228 @@
+     1	#!/bin/sh -e
+     2	#
+     3	# Copyright (c) 2009-2014 Robert Nelson <robertcnelson@gmail.com>
+     4	#
+     5	# Permission is hereby granted, free of charge, to any person obtaining a copy
+     6	# of this software and associated documentation files (the "Software"), to deal
+     7	# in the Software without restriction, including without limitation the rights
+     8	# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+     9	# copies of the Software, and to permit persons to whom the Software is
+    10	# furnished to do so, subject to the following conditions:
+    11	#
+    12	# The above copyright notice and this permission notice shall be included in
+    13	# all copies or substantial portions of the Software.
+    14	#
+    15	# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+    16	# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+    17	# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+    18	# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+    19	# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+    20	# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+    21	# THE SOFTWARE.
+    22	
+    23	DIR=$PWD
+    24	
+    25	mkdir -p ${DIR}/deploy/
+    26	
+    27	patch_kernel () {
+    28		cd ${DIR}/KERNEL
+    29	
+    30		export DIR GIT_OPTS
+    31		/bin/sh -e ${DIR}/patch.sh || { git add . ; exit 1 ; }
+    32	
+    33		if [ ! "${RUN_BISECT}" ] ; then
+    34			git add --all
+    35			git commit --allow-empty -a -m "${KERNEL_TAG}-${BUILD} patchset"
+    36		fi
+    37	
+    38		cd ${DIR}/
+    39	}
+    40	
+    41	copy_defconfig () {
+    42		cd ${DIR}/KERNEL/
+    43		make ARCH=arm CROSS_COMPILE=${CC} distclean
+    44		make ARCH=arm CROSS_COMPILE=${CC} ${config}
+    45		cp -v .config ${DIR}/patches/ref_${config}
+    46		cp -v ${DIR}/patches/defconfig .config
+    47		cd ${DIR}/
+    48	}
+    49	
+    50	make_menuconfig () {
+    51		cd ${DIR}/KERNEL/
+    52		make ARCH=arm CROSS_COMPILE=${CC} menuconfig
+    53		cp -v .config ${DIR}/patches/defconfig
+    54		cd ${DIR}/
+    55	}
+    56	
+    57	make_kernel () {
+    58		image="zImage"
+    59		unset address
+    60	
+    61		#uImage, if you really really want a uImage, zreladdr needs to be defined on the build line going forward...
+    62		#image="uImage"
+    63		#address="LOADADDR=${ZRELADDR}"
+    64	
+    65		cd ${DIR}/KERNEL/
+    66		echo "-----------------------------"
+    67		echo "make -j${CORES} ARCH=arm LOCALVERSION=-${BUILD} CROSS_COMPILE=${CC} ${address} ${image} modules"
+    68		echo "-----------------------------"
+    69		make -j${CORES} ARCH=arm LOCALVERSION=-${BUILD} CROSS_COMPILE=${CC} ${address} ${image} modules
+    70	
+    71		unset DTBS
+    72		cat ${DIR}/KERNEL/arch/arm/Makefile | grep "dtbs:" >/dev/null 2>&1 && DTBS=enable
+    73	
+    74		#FIXME: Starting with v3.15-rc0
+    75		unset has_dtbs_install
+    76		if [ "x${DTBS}" = "x" ] ; then
+    77			cat ${DIR}/KERNEL/arch/arm/Makefile | grep "dtbs dtbs_install:" >/dev/null 2>&1 && DTBS=enable
+    78			if [ "x${DTBS}" = "xenable" ] ; then
+    79				has_dtbs_install=enable
+    80			fi
+    81		fi
+    82	
+    83		if [ "x${DTBS}" = "xenable" ] ; then
+    84			echo "-----------------------------"
+    85			echo "make -j${CORES} ARCH=arm LOCALVERSION=-${BUILD} CROSS_COMPILE=${CC} dtbs"
+    86			echo "-----------------------------"
+    87			make -j${CORES} ARCH=arm LOCALVERSION=-${BUILD} CROSS_COMPILE=${CC} dtbs
+    88			ls arch/arm/boot/* | grep dtb >/dev/null 2>&1 || unset DTBS
+    89		fi
+    90	
+    91		KERNEL_UTS=$(cat ${DIR}/KERNEL/include/generated/utsrelease.h | awk '{print $3}' | sed 's/\"//g' )
+    92	
+    93		if [ -f "${DIR}/deploy/${KERNEL_UTS}.${image}" ] ; then
+    94			rm -rf "${DIR}/deploy/${KERNEL_UTS}.${image}" || true
+    95			rm -rf "${DIR}/deploy/config-${KERNEL_UTS}" || true
+    96		fi
+    97	
+    98		if [ -f ./arch/arm/boot/${image} ] ; then
+    99			cp -v arch/arm/boot/${image} "${DIR}/deploy/${KERNEL_UTS}.${image}"
+   100			cp -v .config "${DIR}/deploy/config-${KERNEL_UTS}"
+   101		fi
+   102	
+   103		cd ${DIR}/
+   104	
+   105		if [ ! -f "${DIR}/deploy/${KERNEL_UTS}.${image}" ] ; then
+   106			export ERROR_MSG="File Generation Failure: [${KERNEL_UTS}.${image}]"
+   107			/bin/sh -e "${DIR}/scripts/error.sh" && { exit 1 ; }
+   108		else
+   109			ls -lh "${DIR}/deploy/${KERNEL_UTS}.${image}"
+   110		fi
+   111	}
+   112	
+   113	make_pkg () {
+   114		cd ${DIR}/KERNEL/
+   115	
+   116		deployfile="-${pkg}.tar.gz"
+   117		tar_options="--create --gzip --file"
+   118	
+   119		if [ "${AUTO_TESTER}" ] ; then
+   120			#FIXME: xz might not be available everywhere...
+   121			#FIXME: ./tools/install_kernel.sh needs update...
+   122			deployfile="-${pkg}.tar.xz"
+   123			tar_options="--create --xz --file"
+   124		fi
+   125	
+   126		if [ -f "${DIR}/deploy/${KERNEL_UTS}${deployfile}" ] ; then
+   127			rm -rf "${DIR}/deploy/${KERNEL_UTS}${deployfile}" || true
+   128		fi
+   129	
+   130		if [ -d ${DIR}/deploy/tmp ] ; then
+   131			rm -rf ${DIR}/deploy/tmp || true
+   132		fi
+   133		mkdir -p ${DIR}/deploy/tmp
+   134	
+   135		echo "-----------------------------"
+   136		echo "Building ${pkg} archive..."
+   137	
+   138		case "${pkg}" in
+   139		modules)
+   140			make -s ARCH=arm CROSS_COMPILE=${CC} modules_install INSTALL_MOD_PATH=${DIR}/deploy/tmp
+   141			;;
+   142		firmware)
+   143			make -s ARCH=arm CROSS_COMPILE=${CC} firmware_install INSTALL_FW_PATH=${DIR}/deploy/tmp
+   144			;;
+   145		dtbs)
+   146			if [ "x${has_dtbs_install}" = "xenable" ] ; then
+   147				make -s ARCH=arm LOCALVERSION=-${BUILD} CROSS_COMPILE=${CC} dtbs_install INSTALL_DTBS_PATH=${DIR}/deploy/tmp
+   148			else
+   149				find ./arch/arm/boot/ -iname "*.dtb" -exec cp -v '{}' ${DIR}/deploy/tmp/ \;
+   150			fi
+   151			;;
+   152		esac
+   153	
+   154		echo "Compressing ${KERNEL_UTS}${deployfile}..."
+   155		cd ${DIR}/deploy/tmp
+   156		tar ${tar_options} ../${KERNEL_UTS}${deployfile} *
+   157	
+   158		cd ${DIR}/
+   159		rm -rf ${DIR}/deploy/tmp || true
+   160	
+   161		if [ ! -f "${DIR}/deploy/${KERNEL_UTS}${deployfile}" ] ; then
+   162			export ERROR_MSG="File Generation Failure: [${KERNEL_UTS}${deployfile}]"
+   163			/bin/sh -e "${DIR}/scripts/error.sh" && { exit 1 ; }
+   164		else
+   165			ls -lh "${DIR}/deploy/${KERNEL_UTS}${deployfile}"
+   166		fi
+   167	}
+   168	
+   169	make_modules_pkg () {
+   170		pkg="modules"
+   171		make_pkg
+   172	}
+   173	
+   174	make_firmware_pkg () {
+   175		pkg="firmware"
+   176		make_pkg
+   177	}
+   178	
+   179	make_dtbs_pkg () {
+   180		pkg="dtbs"
+   181		make_pkg
+   182	}
+   183	
+   184	/bin/sh -e ${DIR}/tools/host_det.sh || { exit 1 ; }
+   185	
+   186	if [ ! -f ${DIR}/system.sh ] ; then
+   187		cp ${DIR}/system.sh.sample ${DIR}/system.sh
+   188	else
+   189		#fixes for bash -> sh conversion...
+   190		sed -i 's/bash/sh/g' ${DIR}/system.sh
+   191		sed -i 's/==/=/g' ${DIR}/system.sh
+   192	fi
+   193	
+   194	unset CC
+   195	unset LINUX_GIT
+   196	. ${DIR}/system.sh
+   197	/bin/sh -e "${DIR}/scripts/gcc.sh" || { exit 1 ; }
+   198	. ${DIR}/.CC
+   199	echo "debug: CC=${CC}"
+   200	
+   201	. ${DIR}/version.sh
+   202	export LINUX_GIT
+   203	
+   204	unset FULL_REBUILD
+   205	#FULL_REBUILD=1
+   206	if [ "${FULL_REBUILD}" ] ; then
+   207		/bin/sh -e "${DIR}/scripts/git.sh" || { exit 1 ; }
+   208	
+   209		if [ "${RUN_BISECT}" ] ; then
+   210			/bin/sh -e "${DIR}/scripts/bisect.sh" || { exit 1 ; }
+   211		fi
+   212	
+   213		patch_kernel
+   214		copy_defconfig
+   215	fi
+   216	if [ ! ${AUTO_BUILD} ] ; then
+   217		make_menuconfig
+   218	fi
+   219	make_kernel
+   220	make_modules_pkg
+   221	make_firmware_pkg
+   222	if [ "x${DTBS}" = "xenable" ] ; then
+   223		make_dtbs_pkg
+   224	fi
+   225	echo "-----------------------------"
+   226	echo "Script Complete"
+   227	echo "eewiki.net: [user@localhost:~$ export kernel_version=${KERNEL_UTS}]"
+   228	echo "-----------------------------"

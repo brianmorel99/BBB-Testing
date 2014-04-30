@@ -1,0 +1,207 @@
+     1	#!/bin/sh -e
+     2	#
+     3	# Copyright (c) 2009-2013 Robert Nelson <robertcnelson@gmail.com>
+     4	#
+     5	# Permission is hereby granted, free of charge, to any person obtaining a copy
+     6	# of this software and associated documentation files (the "Software"), to deal
+     7	# in the Software without restriction, including without limitation the rights
+     8	# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+     9	# copies of the Software, and to permit persons to whom the Software is
+    10	# furnished to do so, subject to the following conditions:
+    11	#
+    12	# The above copyright notice and this permission notice shall be included in
+    13	# all copies or substantial portions of the Software.
+    14	#
+    15	# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+    16	# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+    17	# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+    18	# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+    19	# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+    20	# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+    21	# THE SOFTWARE.
+    22	
+    23	fileserver="http://rcn-ee.homeip.net:81/dl/jenkins/beagleboard.org"
+    24	
+    25	if ! id | grep -q root; then
+    26		echo "must be run as root"
+    27		exit
+    28	fi
+    29	
+    30	network_failure () {
+    31		echo "Error: is network setup?"
+    32		exit
+    33	}
+    34	
+    35	dl_latest () {
+    36		wget --directory-prefix="${tempdir}/dl/" ${fileserver}/latest
+    37		if [ -f "${tempdir}/dl/latest" ] ; then
+    38			. "${tempdir}/dl/latest"
+    39			echo "ABI:${abi}"
+    40			echo "Kernel:${kernel}"
+    41		else
+    42			network_failure
+    43		fi
+    44	
+    45		current_kernel=`uname -r`
+    46		if [ "x${current_kernel}" = "x${kernel}" ] ; then
+    47			echo "You are already running the latest: [${current_kernel}]"
+    48			echo -n "Do you wish to reinstall [${current_kernel}] anyways (y/n)? "
+    49			read response
+    50			if [ ! "x${response}" = "xy" ] ; then
+    51				exit
+    52			fi
+    53		fi
+    54	}
+    55	
+    56	validate_abi () {
+    57		#aab: add ubuntu/debian support...
+    58		#aac: check that its run as root...
+    59		if [ ! "x${abi}" = "xaac" ] ; then
+    60			echo "abi mismatch, please redownload test-me.sh from:"
+    61			echo "http://rcn-ee.homeip.net:81/dl/jenkins/beagleboard.org/"
+    62			echo "-----------------------------"
+    63			echo "rm -rf ./test-me.sh"
+    64			echo "wget http://rcn-ee.homeip.net:81/dl/jenkins/beagleboard.org/test-me.sh"
+    65			echo "chmod +x ./test-me.sh"
+    66			echo "-----------------------------"
+    67			exit
+    68		fi
+    69	}
+    70	
+    71	file_download () {
+    72		if [ -f /boot/zImage ] || [ -f /boot/uboot/zImage ]; then
+    73			echo "Downloading: zImage"
+    74			wget --directory-prefix="${tempdir}/dl/" ${fileserver}/${kernel}/${kernel}.zImage.xz
+    75			if [ ! -f "${tempdir}/dl/${kernel}.zImage.xz" ] ; then
+    76				network_failure
+    77			fi
+    78		fi
+    79		if [ -f /boot/uImage ] || [ -f /boot/uboot/uImage ]; then
+    80			echo "Downloading: uImage"
+    81			wget --directory-prefix="${tempdir}/dl/" ${fileserver}/${kernel}/${kernel}.uImage.xz
+    82			if [ ! -f "${tempdir}/dl/${kernel}.uImage.xz" ] ; then
+    83				network_failure
+    84			fi
+    85		fi
+    86		echo "Downloading: dtbs"
+    87		wget --directory-prefix="${tempdir}/dl/" ${fileserver}/${kernel}/${kernel}-dtbs.tar.xz
+    88		if [ ! -f "${tempdir}/dl/${kernel}-dtbs.tar.xz" ] ; then
+    89			network_failure
+    90		fi
+    91		echo "Downloading: firmware"
+    92		wget --directory-prefix="${tempdir}/dl/" ${fileserver}/${kernel}/${kernel}-firmware.tar.xz
+    93		if [ ! -f "${tempdir}/dl/${kernel}-firmware.tar.xz" ] ; then
+    94			network_failure
+    95		fi
+    96		echo "Downloading: modules"
+    97		wget --directory-prefix="${tempdir}/dl/" ${fileserver}/${kernel}/${kernel}-modules.tar.xz
+    98		if [ ! -f "${tempdir}/dl/${kernel}-modules.tar.xz" ] ; then
+    99			network_failure
+   100		fi
+   101	}
+   102	
+   103	file_backup () {
+   104		echo "Backing up files..."
+   105		if [ -d "/boot/`uname -r`/" ] ; then
+   106			rm -rf "/boot/`uname -r`/" || true
+   107		fi
+   108		mkdir -p /boot/`uname -r`.bak/firmware || true
+   109		mkdir -p /boot/`uname -r`.bak/modules || true
+   110	
+   111		if [ -f /boot/zImage ] ; then
+   112			echo "[Backing up: zImage]"
+   113			cp -v /boot/zImage /boot/`uname -r`.bak/zImage
+   114		fi
+   115		if [ -f /boot/uboot/zImage ] ; then
+   116			echo "[Backing up: zImage]"
+   117			cp -v /boot/uboot/zImage /boot/`uname -r`.bak/zImage
+   118		fi
+   119	
+   120		if [ -f /boot/uImage ] ; then
+   121			echo "[Backing up: uImage]"
+   122			cp -v /boot/uImage /boot/`uname -r`.bak/uImage
+   123		fi
+   124		if [ -f /boot/uboot/uImage ] ; then
+   125			echo "[Backing up: uImage]"
+   126			cp -v /boot/uboot/uImage /boot/`uname -r`.bak/uImage
+   127		fi
+   128	
+   129		if [ -d /boot/uboot/dtbs/ ] ; then
+   130			echo "[Backing up: *.dtb]"
+   131			cp /boot/uboot/dtbs/*.dtb /boot/`uname -r`.bak/  || true
+   132		else
+   133			echo "[Backing up: *.dtb]"
+   134			cp /boot/*.dtb /boot/`uname -r`.bak/  || true
+   135		fi
+   136	
+   137		echo "[Backing up: firmware: *.dtbo]"
+   138		cp -u /lib/firmware/*dtbo /boot/`uname -r`.bak/firmware || true
+   139		echo "[Backing up: firmware: *.dts]"
+   140		cp -u /lib/firmware/*dts /boot/`uname -r`.bak/firmware || true
+   141		echo "[Backing up: modules]"
+   142		cp -ru /lib/modules/`uname -r`/* /boot/`uname -r`.bak/modules || true
+   143		sync
+   144	}
+   145	
+   146	install_files () {
+   147		echo "Installing files..."
+   148		if [ -f /boot/zImage ] ; then
+   149			echo "[Installing: zImage]"
+   150			unxz ${tempdir}/dl/${kernel}.zImage.xz
+   151			rm -rf /boot/zImage || true
+   152			mv ${tempdir}/dl/${kernel}.zImage /boot/zImage
+   153		fi
+   154		if [ -f /boot/uboot/zImage ] ; then
+   155			echo "[Installing: zImage]"
+   156			unxz ${tempdir}/dl/${kernel}.zImage.xz
+   157			rm -rf /boot/uboot/zImage || true
+   158			mv ${tempdir}/dl/${kernel}.zImage /boot/uboot/zImage
+   159		fi
+   160		sync
+   161	
+   162		if [ -f /boot/uImage ] ; then
+   163			echo "[Installing: uImage]"
+   164			unxz ${tempdir}/dl/${kernel}.uImage.xz
+   165			rm -rf /boot/uImage || true
+   166			mv ${tempdir}/dl/${kernel}.uImage /boot/uImage
+   167		fi
+   168		if [ -f /boot/uboot/uImage ] ; then
+   169			echo "[Installing: uImage]"
+   170			unxz ${tempdir}/dl/${kernel}.uImage.xz
+   171			rm -rf /boot/uImage || true
+   172			mv ${tempdir}/dl/${kernel}.uImage /boot/uboot/uImage
+   173		fi
+   174		sync
+   175	
+   176		if [ -d /boot/uboot/dtbs/ ] ; then
+   177			echo "[Installing: dtbs]"
+   178			#This can be fat16 so add '-o' for no-same-owner
+   179			tar xfmo ${tempdir}/dl/${kernel}-dtbs.tar.xz -C /boot/uboot/dtbs/
+   180		else
+   181			echo "[Installing: dtbs]"
+   182			tar xfm ${tempdir}/dl/${kernel}-dtbs.tar.xz -C /boot/
+   183		fi
+   184		sync
+   185	
+   186		echo "[Installing: modules]"
+   187		tar xfm ${tempdir}/dl/${kernel}-modules.tar.xz -C /
+   188		sync
+   189		echo "[Installing: firmware]"
+   190		tar xfm ${tempdir}/dl/${kernel}-firmware.tar.xz -C ${tempdir}/dl/extract
+   191		sync
+   192		cp ${tempdir}/dl/extract/*.dtbo /lib/firmware/ 2>/dev/null || true
+   193		cp ${tempdir}/dl/extract/*.dts /lib/firmware/ 2>/dev/null || true
+   194		sync
+   195		echo "Please reboot..."
+   196	}
+   197	
+   198	workingdir="$PWD"
+   199	tempdir=$(mktemp -d)
+   200	mkdir -p ${tempdir}/dl/extract || true
+   201	
+   202	dl_latest
+   203	validate_abi
+   204	file_download
+   205	file_backup
+   206	install_files
+   207	

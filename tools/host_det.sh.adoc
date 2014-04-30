@@ -1,0 +1,492 @@
+===== Original File
+* 
+
+Shell arguement “-e” tells the shell to exit if anything returns non-zero (error) on exit
+[source,sh]
+----
+     1	#!/bin/sh -e
+----
+Credit lines for parts written by someone besides RCN
+[source,sh]
+----
+     3	#opensuse support added by: Antonio Cavallo
+     4	#https://launchpad.net/~a.cavallo
+----
+Need to think about, but basically run detect_host function.
+[source,sh]
+----
+   420	BUILD_HOST=${BUILD_HOST:="$( detect_host )"}
+----
+
+[source,sh]
+----
+    13	detect_host () {
+----
+Declare some local variables.
+[source,sh]
+----
+    14		local REV DIST PSEUDONAME
+----
+Check for redhat-release file, then populate some variables & echo to user.
+[source,sh]
+----
+    16		if [ -f /etc/redhat-release ] ; then
+    17			DIST='RedHat'
+    18			PSEUDONAME=$(cat /etc/redhat-release | sed s/.*\(// | sed s/\)//)
+    19			REV=$(cat /etc/redhat-release | sed s/.*release\ // | sed s/\ .*//)
+    20			echo "redhat-$REV"
+----
+Check for SuSE-release file, then populate some variables.
+[source,sh]
+----
+    21		elif [ -f /etc/SuSE-release ] ; then
+    22			DIST=$(cat /etc/SuSE-release | tr "\n" ' '| sed s/VERSION.*//)
+    23			REV=$(cat /etc/SuSE-release | tr "\n" ' ' | sed s/.*=\ //)
+    24			trim "suse-$REV"
+----
+Check for debian_version file, then populate some variables & echo to user.
+[source,sh]
+----
+    25		elif [ -f /etc/debian_version ] ; then
+    26			DIST="Debian Based"
+    27			debian="debian"
+    28			echo "${debian}"
+    29		fi
+    30	}
+----
+If lsb_release program exists, use it and a few other programs to print some info to standard error.
+[source,sh]
+----
+   421	if [ $(which lsb_release) ] ; then
+   422		info "Detected build host [`lsb_release -sd`]"
+   423		info "host: [`uname -m`]"
+   424		info "git HEAD commit: [`git rev-parse HEAD`]"
+----
+Otherwise, use value of $BUILD_HOST variable & other programs to print some info to standard error.
+[source,sh]
+----
+   425	else
+   426		info "Detected build host [$BUILD_HOST]"
+   427		info "host: [`uname -m`]"
+   428		info "git HEAD commit: [`git rev-parse HEAD`]"
+   429	fi
+----
+Call approprite function depending on what is in $BUILD_HOST
+[source,sh]
+----
+   430	case "$BUILD_HOST" in
+   431	    redhat*)
+   432		    redhat_reqs || error "Failed dependency check"
+   433	        ;;
+   434	    debian*)
+   435		    debian_regs || error "Failed dependency check"
+   436	        ;;
+   437	    suse*)
+   438		    suse_regs "$BUILD_HOST" || error "Failed dependency check"
+   439	        ;;
+   440	esac
+----
+Lets look at debian_regs function
+[source,sh]
+----
+   163	debian_regs () {
+   164		unset deb_pkgs
+   165		pkg="bc"
+   166		check_dpkg
+   167		pkg="build-essential"
+   168		check_dpkg
+   169		pkg="device-tree-compiler"
+   170		check_dpkg
+   171		pkg="fakeroot"
+   172		check_dpkg
+   173		pkg="lsb-release"
+   174		check_dpkg
+   175		pkg="lzma"
+   176		check_dpkg
+   177		pkg="lzop"
+   178		check_dpkg
+   179		pkg="man-db"
+   180		check_dpkg
+   181	
+   182		unset warn_dpkg_ia32
+   183		unset stop_pkg_search
+   184		#lsb_release might not be installed...
+   185		if [ $(which lsb_release) ] ; then
+   186			deb_distro=$(lsb_release -cs | sed 's/\//_/g')
+   187	
+   188			if [ "x${deb_distro}" = "xn_a" ] ; then
+   189				echo "+ Warning: [lsb_release -cs] just returned [n/a], so now testing [lsb_release -rs] instead..."
+   190				deb_lsb_rs=$(lsb_release -rs | awk '{print $1}' | sed 's/\//_/g')
+   191	
+   192				#http://docs.kali.org/kali-policy/kali-linux-relationship-with-debian
+   193				#lsb_release -a
+   194				#No LSB modules are available.
+   195				#Distributor ID:    Debian
+   196				#Description:    Debian GNU/Linux Kali Linux 1.0
+   197				#Release:    Kali Linux 1.0
+   198				#Codename:    n/a
+   199				if [ "x${deb_lsb_rs}" = "xKali" ] ; then
+   200					deb_distro="wheezy"
+   201				fi
+   202	
+   203				#Debian "testing"
+   204				#lsb_release -a
+   205				#No LSB modules are available.
+   206				#Distributor ID: Debian
+   207				#Description:    Debian GNU/Linux testing/unstable
+   208				#Release:        testing/unstable
+   209				#Codename:       n/a
+   210				if [ "x${deb_lsb_rs}" = "xtesting_unstable" ] ; then
+   211					deb_distro="jessie"
+   212				fi
+   213			fi
+   214	
+   215			if [ "x${deb_distro}" = "xtesting" ] ; then
+   216				echo "+ Warning: [lsb_release -cs] just returned [testing], so now testing [lsb_release -ds] instead..."
+   217				deb_lsb_ds=$(lsb_release -ds | awk '{print $1}')
+   218	
+   219				#http://solydxk.com/about/solydxk/
+   220				#lsb_release -a
+   221				#No LSB modules are available.
+   222				#Distributor ID: SolydXK
+   223				#Description:    SolydXK
+   224				#Release:        1
+   225				#Codename:       testing
+   226				if [ "x${deb_lsb_ds}" = "xSolydXK" ] ; then
+   227					deb_distro="jessie"
+   228				fi
+   229			fi
+   230	
+   231			if [ "x${deb_distro}" = "xluna" ] ; then
+   232				#http://distrowatch.com/table.php?distribution=elementary
+   233				#lsb_release -a
+   234				#No LSB modules are available.
+   235				#Distributor ID:    elementary OS
+   236				#Description:    elementary OS Luna
+   237				#Release:    0.2
+   238				#Codename:    luna
+   239				deb_distro="precise"
+   240			fi
+   241	
+   242			#Linux Mint: Compatibility Matrix
+   243			#http://www.linuxmint.com/oldreleases.php
+   244			#http://packages.linuxmint.com/index.php
+   245			case "${deb_distro}" in
+   246			debian)
+   247				deb_distro="jessie"
+   248				;;
+   249			isadora)
+   250				deb_distro="lucid"
+   251				;;
+   252			julia)
+   253				deb_distro="maverick"
+   254				;;
+   255			katya)
+   256				deb_distro="natty"
+   257				;;
+   258			lisa)
+   259				deb_distro="oneiric"
+   260				;;
+   261			maya)
+   262				deb_distro="precise"
+   263				;;
+   264			nadia)
+   265				deb_distro="quantal"
+   266				;;
+   267			olivia)
+   268				deb_distro="raring"
+   269				;;
+   270			petra)
+   271				deb_distro="saucy"
+   272				;;
+   273			qiana)
+   274				deb_distro="trusty"
+   275				;;
+   276			esac
+   277	
+   278			case "${deb_distro}" in
+   279			squeeze|wheezy|jessie|sid)
+   280				#Supported Debian:
+   281				unset error_unknown_deb_distro
+   282				unset warn_eol_distro
+   283				;;
+   284			lucid|precise|quantal|saucy|trusty)
+   285				#Supported Ubuntu:
+   286				unset error_unknown_deb_distro
+   287				unset warn_eol_distro
+   288				;;
+   289			raring)
+   290				#Old Ubuntu: between lts: precise -> trusty
+   291				#But still on: http://us.archive.ubuntu.com/ubuntu/dists/
+   292				unset error_unknown_deb_distro
+   293				warn_eol_distro=1
+   294				;;
+   295			oneiric)
+   296				#Old Ubuntu: between lts: lucid -> precise
+   297				#But still on: http://us.archive.ubuntu.com/ubuntu/dists/ (supported except for oneiric)
+   298				#in 'theory' could bring oneiric back, but no reason too at this point...
+   299				unset error_unknown_deb_distro
+   300				warn_eol_distro=1
+   301				stop_pkg_search=1
+   302				;;
+   303			maverick|natty)
+   304				#Old Ubuntu: between lts: lucid -> precise
+   305				#removed from http://us.archive.ubuntu.com/ubuntu/dists/ thus unsupported...
+   306				unset error_unknown_deb_distro
+   307				warn_eol_distro=1
+   308				stop_pkg_search=1
+   309				;;
+   310			hardy)
+   311				#Old Ubuntu LTS: unsupported...
+   312				unset error_unknown_deb_distro
+   313				warn_eol_distro=1
+   314				stop_pkg_search=1
+   315				;;
+   316			*)
+   317				error_unknown_deb_distro=1
+   318				unset warn_eol_distro
+   319				stop_pkg_search=1
+   320				;;
+   321			esac
+   322		fi
+   323	
+   324		if [ $(which lsb_release) ] && [ ! "${stop_pkg_search}" ] ; then
+   325			deb_arch=$(LC_ALL=C dpkg --print-architecture)
+   326			
+   327			#pkg: mkimage
+   328			case "${deb_distro}" in
+   329			squeeze|lucid)
+   330				pkg="uboot-mkimage"
+   331				check_dpkg
+   332				;;
+   333			*)
+   334				pkg="u-boot-tools"
+   335				check_dpkg
+   336				;;
+   337			esac
+   338	
+   339			#Libs; starting with jessie/sid/saucy, lib<pkg_name>-dev:<arch>
+   340			case "${deb_distro}" in
+   341			jessie|sid|saucy|trusty)
+   342				pkg="libncurses5-dev:${deb_arch}"
+   343				check_dpkg
+   344				;;
+   345			*)
+   346				pkg="libncurses5-dev"
+   347				check_dpkg
+   348				;;
+   349			esac
+   350			
+   351			#pkg: ia32-libs
+   352			if [ "x${deb_arch}" = "xamd64" ] ; then
+   353				unset dpkg_multiarch
+   354				case "${deb_distro}" in
+   355				squeeze|lucid|precise)
+   356					pkg="ia32-libs"
+   357					check_dpkg
+   358					;;
+   359				wheezy|jessie|sid|quantal|raring|saucy|trusty)
+   360					pkg="libc6:i386"
+   361					check_dpkg
+   362					pkg="libncurses5:i386"
+   363					check_dpkg
+   364					pkg="libstdc++6:i386"
+   365					check_dpkg
+   366					pkg="zlib1g:i386"
+   367					check_dpkg
+   368					dpkg_multiarch=1
+   369					;;
+   370				esac
+   371	
+   372				if [ "${dpkg_multiarch}" ] ; then
+   373					unset check_foreign
+   374					check_foreign=$(LC_ALL=C dpkg --print-foreign-architectures)
+   375					if [ "x${check_foreign}" = "x" ] ; then
+   376						warn_dpkg_ia32=1
+   377					fi
+   378				fi
+   379			fi
+   380		fi
+   381	
+   382		if [ "${warn_eol_distro}" ] ; then
+   383			echo "End Of Life (EOL) deb based distro detected."
+   384			echo "-----------------------------"
+   385		fi
+   386	
+   387		if [ "${stop_pkg_search}" ] ; then
+   388			echo "Dependency check skipped, you are on your own."
+   389			echo "-----------------------------"
+   390			unset deb_pkgs
+   391		fi
+   392	
+   393		if [ "${error_unknown_deb_distro}" ] ; then
+   394			echo "Unrecognized deb based system:"
+   395			echo "-----------------------------"
+   396			echo "Please cut, paste and email to: bugs@rcn-ee.com"
+   397			echo "-----------------------------"
+   398			echo "git: `git rev-parse HEAD`"
+   399			echo "uname -m"
+   400			uname -m
+   401			echo "lsb_release -a"
+   402			lsb_release -a
+   403			echo "-----------------------------"
+   404			return 1
+   405		fi
+   406	
+   407		if [ "${deb_pkgs}" ] ; then
+   408			echo "Debian/Ubuntu/Mint: missing dependencies, please install:"
+   409			echo "-----------------------------"
+   410			if [ "${warn_dpkg_ia32}" ] ; then
+   411				echo "sudo dpkg --add-architecture i386"
+   412			fi
+   413			echo "sudo apt-get update"
+   414			echo "sudo apt-get install ${deb_pkgs}"
+   415			echo "-----------------------------"
+   416			return 1
+   417		fi
+   418	}
+----
+Helper Functions
+[source,sh]
+----
+     6	warning () { echo "! $@" >&2; }
+     7	error () { echo "* $@" >&2; exit 1; }
+     8	info () { echo "+ $@" >&2; }
+     9	ltrim () { echo "$1" | awk '{ gsub(/^[ \t]+/,"", $0); print $0}'; }
+    10	rtrim () { echo "$1" | awk '{ gsub(/[ \t]+$/,"", $0); print $0}'; }
+    11	trim () { local x="$( ltrim "$1")"; x="$( rtrim "$x")"; echo "$x"; }
+----
+check_rpm Helper Function
+[source,sh]
+----
+    32	check_rpm () {
+    33		pkg_test=$(LC_ALL=C rpm -q ${pkg})
+    34		if [ "x${pkg_test}" = "xpackage ${pkg} is not installed" ] ; then
+    35			rpm_pkgs="${rpm_pkgs}${pkg} "
+    36		fi
+    37	}
+    38	
+    39	redhat_reqs () {
+    40		#https://fedoraproject.org/wiki/Releases
+    41		unset rpm_pkgs
+    42		pkg="redhat-lsb-core"
+    43		check_rpm
+    44		pkg="gcc"
+    45		check_rpm
+    46		pkg="ncurses-devel"
+    47		check_rpm
+    48		pkg="wget"
+    49		check_rpm
+    50	
+    51		arch=$(uname -m)
+    52		if [ "x${arch}" = "xx86_64" ] ; then
+    53			pkg="ncurses-devel.i686"
+    54			check_rpm
+    55			pkg="libstdc++.i686"
+    56			check_rpm
+    57			pkg="zlib.i686"
+    58			check_rpm
+    59		fi
+    60	
+    61		if [ $(which lsb_release) ] ; then
+    62			rpm_distro=$(lsb_release -rs)
+    63			echo "RPM distro version: [${rpm_distro}]"
+    64	
+    65			case "${rpm_distro}" in
+    66			6.4|6.5)
+    67				echo "-----------------------------"
+    68				echo "Warning: RHEL/CentOS [${rpm_distro}] has no [uboot-tools] pkg by default"
+    69				echo "add: [EPEL] repo: https://fedoraproject.org/wiki/EPEL"
+    70				echo "http://download.fedoraproject.org/pub/epel/6/i386/repoview/epel-release.html"
+    71				echo "-----------------------------"
+    72				pkg="uboot-tools"
+    73				check_rpm
+    74				;;
+    75			7.0)
+    76				echo "-----------------------------"
+    77				echo "Warning: RHEL/CentOS [${rpm_distro}] has no [uboot-tools] pkg by default"
+    78				echo "add: [EPEL] repo: https://fedoraproject.org/wiki/EPEL"
+    79				echo "http://download.fedoraproject.org/pub/epel/6/i386/repoview/epel-release.html"
+    80				echo "-----------------------------"
+    81				#pkg="uboot-tools"
+    82				#check_rpm
+    83				;;
+    84			17|18|19|20|21)
+    85				pkg="uboot-tools"
+    86				check_rpm
+    87				;;
+    88			*)
+    89				echo "Warning: [uboot-tools] package check still in development"
+    90				echo "Please email to: bugs@rcn-ee.com"
+    91				echo "Success/Failure of [yum install uboot-tools]"
+    92				echo "RPM distro version: [${rpm_distro}]"
+    93				pkg="uboot-tools"
+    94				check_rpm
+    95				;;
+    96			esac
+    97		fi
+    98	
+    99		if [ "${rpm_pkgs}" ] ; then
+   100			echo "Red Hat, or derivatives: missing dependencies, please install:"
+   101			echo "-----------------------------"
+   102			echo "yum install ${rpm_pkgs}"
+   103			echo "-----------------------------"
+   104			return 1
+   105		fi
+   106	}
+   107	
+   108	suse_regs () {
+   109	    local BUILD_HOST="$1"   
+   110	# --- SuSE-release ---
+   111	    if [ ! -f /etc/SuSE-release ]
+   112	    then
+   113	        cat >&2 <<@@
+   114	Missing /etc/SuSE-release file
+   115	 this file is part of the efault suse system. If this is a
+   116	 suse system for real, please install the package with:
+   117	    
+   118	    zypper install openSUSE-release   
+   119	@@
+   120	        return 1
+   121	    fi
+   122	
+   123	
+   124	# --- patch ---
+   125	    if [ ! $( which patch ) ]
+   126	    then
+   127	        cat >&2 <<@@
+   128	Missing patch command,
+   129	 it is part of the opensuse $BUILD_HOST distribution so it can be 
+   130	 installed simply using:
+   131	
+   132	    zypper install patch
+   133	
+   134	@@
+   135	        return 1
+   136	    fi
+   137	
+   138	# --- mkimage ---
+   139	    if [ ! $( which mkimage ) ]
+   140	    then
+   141	        cat >&2 <<@@
+   142	Missing mkimage command.
+   143	 This command is part of a package not provided directly from
+   144	 opensuse. It can be found under several places for suse.
+   145	 There are two ways to install the package: either using a rpm
+   146	 or using a repo.
+   147	 In the second case these are the command to issue in order to 
+   148	 install it:
+   149	
+   150	    zypper addrepo -f http://download.opensuse.org/repositories/home:/jblunck:/beagleboard/openSUSE_11.2
+   151	    zypper install uboot-mkimage
+   152	
+   153	@@
+   154	        return 1
+   155	    fi
+   156	    
+   157	}
+   158	
+   159	check_dpkg () {
+   160		LC_ALL=C dpkg --list | awk '{print $2}' | grep "^${pkg}$" >/dev/null || deb_pkgs="${deb_pkgs}${pkg} "
+   161	}
+----

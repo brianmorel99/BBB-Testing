@@ -1,0 +1,38 @@
+     1	#!/bin/sh -e
+     2	#
+     3	# Copyright (c) 2012 Robert Nelson <robertcnelson@gmail.com>
+     4	#
+     5	# Permission is hereby granted, free of charge, to any person obtaining a copy
+     6	# of this software and associated documentation files (the "Software"), to deal
+     7	# in the Software without restriction, including without limitation the rights
+     8	# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+     9	# copies of the Software, and to permit persons to whom the Software is
+    10	# furnished to do so, subject to the following conditions:
+    11	#
+    12	# The above copyright notice and this permission notice shall be included in
+    13	# all copies or substantial portions of the Software.
+    14	#
+    15	# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+    16	# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+    17	# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+    18	# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+    19	# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+    20	# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+    21	# THE SOFTWARE.
+    22	
+    23	DIR=$PWD
+    24	
+    25	if [ ! -f ${DIR}/patches/bisect_defconfig ] ; then
+    26		cp ${DIR}/patches/defconfig ${DIR}/patches/bisect_defconfig
+    27	fi
+    28	
+    29	cp -v ${DIR}/patches/bisect_defconfig ${DIR}/patches/defconfig
+    30	
+    31	cd ${DIR}/KERNEL/
+    32	git bisect start
+    33	#git bisect good v3.4
+    34	#git bisect bad v3.5-rc1
+    35	
+    36	
+    37	git describe
+    38	cd ${DIR}/

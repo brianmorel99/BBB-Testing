@@ -1,0 +1,195 @@
+     1	#!/bin/sh -e
+     2	#
+     3	# Copyright (c) 2009-2014 Robert Nelson <robertcnelson@gmail.com>
+     4	#
+     5	# Permission is hereby granted, free of charge, to any person obtaining a copy
+     6	# of this software and associated documentation files (the "Software"), to deal
+     7	# in the Software without restriction, including without limitation the rights
+     8	# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+     9	# copies of the Software, and to permit persons to whom the Software is
+    10	# furnished to do so, subject to the following conditions:
+    11	#
+    12	# The above copyright notice and this permission notice shall be included in
+    13	# all copies or substantial portions of the Software.
+    14	#
+    15	# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+    16	# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+    17	# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+    18	# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+    19	# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+    20	# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+    21	# THE SOFTWARE.
+    22	
+    23	DIR=$PWD
+    24	
+    25	mkdir -p ${DIR}/deploy/
+    26	
+    27	patch_kernel () {
+    28		cd ${DIR}/KERNEL
+    29	
+    30		export DIR GIT_OPTS
+    31		/bin/sh -e ${DIR}/patch.sh || { git add . ; exit 1 ; }
+    32	
+    33		if [ ! "${RUN_BISECT}" ] ; then
+    34			git add --all
+    35			git commit --allow-empty -a -m "${KERNEL_TAG}-${BUILD} patchset"
+    36		fi
+    37	
+    38		cd ${DIR}/
+    39	}
+    40	
+    41	copy_defconfig () {
+    42		cd ${DIR}/KERNEL/
+    43		make ARCH=arm CROSS_COMPILE=${CC} distclean
+    44		make ARCH=arm CROSS_COMPILE=${CC} ${config}
+    45		cp -v .config ${DIR}/patches/ref_${config}
+    46		cp -v ${DIR}/patches/defconfig .config
+    47		cd ${DIR}/
+    48	}
+    49	
+    50	make_menuconfig () {
+    51		cd ${DIR}/KERNEL/
+    52		make ARCH=arm CROSS_COMPILE=${CC} menuconfig
+    53		cp -v .config ${DIR}/patches/defconfig
+    54		cd ${DIR}/
+    55	}
+    56	
+    57	make_deb () {
+    58		cd ${DIR}/KERNEL/
+    59		echo "-----------------------------"
+    60		echo "make -j${CORES} ARCH=arm KBUILD_DEBARCH=${DEBARCH} LOCALVERSION=-${BUILD} CROSS_COMPILE=${CC} KDEB_PKGVERSION=${BUILDREV}${DISTRO} deb-pkg"
+    61		echo "-----------------------------"
+    62		fakeroot make -j${CORES} ARCH=arm KBUILD_DEBARCH=${DEBARCH} LOCALVERSION=-${BUILD} CROSS_COMPILE=${CC} KDEB_PKGVERSION=${BUILDREV}${DISTRO} deb-pkg
+    63		mv ${DIR}/*.deb ${DIR}/deploy/
+    64	
+    65		unset DTBS
+    66		cat ${DIR}/KERNEL/arch/arm/Makefile | grep "dtbs:" >/dev/null 2>&1 && DTBS=enable
+    67	
+    68		#FIXME: Starting with v3.15-rc0
+    69		unset has_dtbs_install
+    70		if [ "x${DTBS}" = "x" ] ; then
+    71			cat ${DIR}/KERNEL/arch/arm/Makefile | grep "dtbs dtbs_install:" >/dev/null 2>&1 && DTBS=enable
+    72			if [ "x${DTBS}" = "xenable" ] ; then
+    73				has_dtbs_install=enable
+    74			fi
+    75		fi
+    76	
+    77		if [ "x${DTBS}" = "xenable" ] ; then
+    78			echo "-----------------------------"
+    79			echo "make -j${CORES} ARCH=arm LOCALVERSION=-${BUILD} CROSS_COMPILE=${CC} dtbs"
+    80			echo "-----------------------------"
+    81			make -j${CORES} ARCH=arm LOCALVERSION=-${BUILD} CROSS_COMPILE=${CC} dtbs
+    82			ls arch/arm/boot/* | grep dtb >/dev/null 2>&1 || unset DTBS
+    83		fi
+    84	
+    85		KERNEL_UTS=$(cat ${DIR}/KERNEL/include/generated/utsrelease.h | awk '{print $3}' | sed 's/\"//g' )
+    86	
+    87		cd ${DIR}/
+    88	}
+    89	
+    90	make_pkg () {
+    91		cd ${DIR}/KERNEL/
+    92	
+    93		deployfile="-${pkg}.tar.gz"
+    94		tar_options="--create --gzip --file"
+    95	
+    96		if [ "${AUTO_TESTER}" ] ; then
+    97			#FIXME: xz might not be available everywhere...
+    98			#FIXME: ./tools/install_kernel.sh needs update...
+    99			deployfile="-${pkg}.tar.xz"
+   100			tar_options="--create --xz --file"
+   101		fi
+   102	
+   103		if [ -f "${DIR}/deploy/${KERNEL_UTS}${deployfile}" ] ; then
+   104			rm -rf "${DIR}/deploy/${KERNEL_UTS}${deployfile}" || true
+   105		fi
+   106	
+   107		if [ -d ${DIR}/deploy/tmp ] ; then
+   108			rm -rf ${DIR}/deploy/tmp || true
+   109		fi
+   110		mkdir -p ${DIR}/deploy/tmp
+   111	
+   112		echo "-----------------------------"
+   113		echo "Building ${pkg} archive..."
+   114	
+   115		case "${pkg}" in
+   116		modules)
+   117			make -s ARCH=arm CROSS_COMPILE=${CC} modules_install INSTALL_MOD_PATH=${DIR}/deploy/tmp
+   118			;;
+   119		firmware)
+   120			make -s ARCH=arm CROSS_COMPILE=${CC} firmware_install INSTALL_FW_PATH=${DIR}/deploy/tmp
+   121			;;
+   122		dtbs)
+   123			if [ "x${has_dtbs_install}" = "xenable" ] ; then
+   124				make -s ARCH=arm LOCALVERSION=-${BUILD} CROSS_COMPILE=${CC} dtbs_install INSTALL_DTBS_PATH=${DIR}/deploy/tmp
+   125			else
+   126				find ./arch/arm/boot/ -iname "*.dtb" -exec cp -v '{}' ${DIR}/deploy/tmp/ \;
+   127			fi
+   128			;;
+   129		esac
+   130	
+   131		echo "Compressing ${KERNEL_UTS}${deployfile}..."
+   132		cd ${DIR}/deploy/tmp
+   133		tar ${tar_options} ../${KERNEL_UTS}${deployfile} *
+   134	
+   135		cd ${DIR}/
+   136		rm -rf ${DIR}/deploy/tmp || true
+   137	
+   138		if [ ! -f "${DIR}/deploy/${KERNEL_UTS}${deployfile}" ] ; then
+   139			export ERROR_MSG="File Generation Failure: [${KERNEL_UTS}${deployfile}]"
+   140			/bin/sh -e "${DIR}/scripts/error.sh" && { exit 1 ; }
+   141		else
+   142			ls -lh "${DIR}/deploy/${KERNEL_UTS}${deployfile}"
+   143		fi
+   144	}
+   145	
+   146	make_firmware_pkg () {
+   147		pkg="firmware"
+   148		make_pkg
+   149	}
+   150	
+   151	make_dtbs_pkg () {
+   152		pkg="dtbs"
+   153		make_pkg
+   154	}
+   155	
+   156	/bin/sh -e ${DIR}/tools/host_det.sh || { exit 1 ; }
+   157	
+   158	if [ ! -f ${DIR}/system.sh ] ; then
+   159		cp ${DIR}/system.sh.sample ${DIR}/system.sh
+   160	else
+   161		#fixes for bash -> sh conversion...
+   162		sed -i 's/bash/sh/g' ${DIR}/system.sh
+   163		sed -i 's/==/=/g' ${DIR}/system.sh
+   164	fi
+   165	
+   166	unset CC
+   167	unset LINUX_GIT
+   168	. ${DIR}/system.sh
+   169	/bin/sh -e "${DIR}/scripts/gcc.sh" || { exit 1 ; }
+   170	. ${DIR}/.CC
+   171	echo "debug: CC=${CC}"
+   172	
+   173	. ${DIR}/version.sh
+   174	export LINUX_GIT
+   175	
+   176	unset FULL_REBUILD
+   177	#FULL_REBUILD=1
+   178	if [ "${FULL_REBUILD}" ] ; then
+   179		/bin/sh -e "${DIR}/scripts/git.sh" || { exit 1 ; }
+   180	
+   181		if [ "${RUN_BISECT}" ] ; then
+   182			/bin/sh -e "${DIR}/scripts/bisect.sh" || { exit 1 ; }
+   183		fi
+   184	
+   185		patch_kernel
+   186		copy_defconfig
+   187	fi
+   188	if [ ! ${AUTO_BUILD} ] ; then
+   189		make_menuconfig
+   190	fi
+   191	make_deb
+   192	make_firmware_pkg
+   193	if [ "x${DTBS}" = "xenable" ] ; then
+   194		make_dtbs_pkg
+   195	fi

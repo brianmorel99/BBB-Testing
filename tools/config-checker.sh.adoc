@@ -1,0 +1,281 @@
+     1	#!/bin/sh -e
+     2	
+     3	DIR=$PWD
+     4	
+     5	check_config_value () {
+     6		unset test_config
+     7		test_config=$(grep "${config}=" ${DIR}/patches/defconfig || true)
+     8		if [ "x${test_config}" = "x" ] ; then
+     9			echo "echo ${config}=${value} >> ./KERNEL/.config"
+    10		else
+    11			if [ ! "x${test_config}" = "x${config}=${value}" ] ; then
+    12				echo "sed -i -e 's:${test_config}:${config}=${value}:g' ./KERNEL/.config"
+    13			fi
+    14		fi
+    15	}
+    16	
+    17	check_config_builtin () {
+    18		unset test_config
+    19		test_config=$(grep "${config}=y" ${DIR}/patches/defconfig || true)
+    20		if [ "x${test_config}" = "x" ] ; then
+    21			echo "echo ${config}=y >> ./KERNEL/.config"
+    22		fi
+    23	}
+    24	
+    25	check_config_module () {
+    26		unset test_config
+    27		test_config=$(grep "${config}=y" ${DIR}/patches/defconfig || true)
+    28		if [ "x${test_config}" = "x${config}=y" ] ; then
+    29			echo "sed -i -e 's:${config}=y:${config}=m:g' ./KERNEL/.config"
+    30		else
+    31			unset test_config
+    32			test_config=$(grep "${config}=" ${DIR}/patches/defconfig || true)
+    33			if [ "x${test_config}" = "x" ] ; then
+    34				echo "echo ${config}=m >> ./KERNEL/.config"
+    35			fi
+    36		fi
+    37	}
+    38	
+    39	check_config () {
+    40		unset test_config
+    41		test_config=$(grep "${config}=" ${DIR}/patches/defconfig || true)
+    42		if [ "x${test_config}" = "x" ] ; then
+    43			echo "echo ${config}=y >> ./KERNEL/.config"
+    44			echo "echo ${config}=m >> ./KERNEL/.config"
+    45		fi
+    46	}
+    47	
+    48	check_config_disable () {
+    49		unset test_config
+    50		test_config=$(grep "${config} is not set" ${DIR}/patches/defconfig || true)
+    51		if [ "x${test_config}" = "x" ] ; then
+    52			unset test_config
+    53			test_config=$(grep "${config}=y" ${DIR}/patches/defconfig || true)
+    54			if [ "x${test_config}" = "x${config}=y" ] ; then
+    55				echo "sed -i -e 's:${config}=y:# ${config} is not set:g' ./KERNEL/.config"
+    56			else
+    57				echo "sed -i -e 's:${config}=m:# ${config} is not set:g' ./KERNEL/.config"
+    58			fi
+    59		fi
+    60	}
+    61	
+    62	check_if_set_then_set_module () {
+    63		unset test_config
+    64		test_config=$(grep "${if_config}=y" ${DIR}/patches/defconfig || true)
+    65		if [ "x${test_config}" = "x${if_config}=y" ] ; then
+    66			check_config_module
+    67		fi
+    68	}
+    69	
+    70	check_if_set_then_set () {
+    71		unset test_config
+    72		test_config=$(grep "${if_config}=y" ${DIR}/patches/defconfig || true)
+    73		if [ "x${test_config}" = "x${if_config}=y" ] ; then
+    74			check_config_builtin
+    75		fi
+    76	}
+    77	
+    78	check_if_set_then_disable () {
+    79		unset test_config
+    80		test_config=$(grep "${if_config}=y" ${DIR}/patches/defconfig || true)
+    81		if [ "x${test_config}" = "x${if_config}=y" ] ; then
+    82			check_config_disable
+    83		fi
+    84	}
+    85	
+    86	###CONFIG_ARCH_MULTIPLATFORM
+    87	if_config="CONFIG_ARCH_MULTIPLATFORM"
+    88	
+    89	config="CONFIG_ARCH_MULTI_V6"
+    90	check_if_set_then_disable
+    91	
+    92	#drop non omap3/imx
+    93	config="CONFIG_ARCH_BERLIN"
+    94	check_if_set_then_disable
+    95	config="CONFIG_ARCH_BCM"
+    96	check_if_set_then_disable
+    97	config="CONFIG_ARCH_KEYSTONE"
+    98	check_if_set_then_disable
+    99	config="CONFIG_ARCH_HIGHBANK"
+   100	check_if_set_then_disable
+   101	config="CONFIG_ARCH_MVEBU"
+   102	check_if_set_then_disable
+   103	config="CONFIG_ARCH_ROCKCHIP"
+   104	check_if_set_then_disable
+   105	config="CONFIG_ARCH_SOCFPGA"
+   106	check_if_set_then_disable
+   107	config="CONFIG_ARCH_STI"
+   108	check_if_set_then_disable
+   109	config="CONFIG_ARCH_SUNXI"
+   110	check_if_set_then_disable
+   111	config="CONFIG_ARCH_SIRF"
+   112	check_if_set_then_disable
+   113	config="CONFIG_ARCH_TEGRA"
+   114	check_if_set_then_disable
+   115	config="CONFIG_ARCH_VIRT"
+   116	check_if_set_then_disable
+   117	config="CONFIG_ARCH_WM8850"
+   118	check_if_set_then_disable
+   119	config="CONFIG_ARCH_ZYNQ"
+   120	check_if_set_then_disable
+   121	config="CONFIG_ARCH_VEXPRESS"
+   122	check_if_set_then_disable
+   123	
+   124	#not disabling easily...
+   125	config="CONFIG_PLAT_SPEAR"
+   126	check_if_set_then_disable
+   127	config="CONFIG_ARCH_U8500"
+   128	check_if_set_then_disable
+   129	
+   130	#omap3 beagles need this... (thumb2 bugs)
+   131	if_config="CONFIG_ARCH_OMAP3"
+   132	config="CONFIG_ARM_ERRATA_430973"
+   133	check_if_set_then_set
+   134	config="CONFIG_PINCTRL_SINGLE"
+   135	check_if_set_then_set
+   136	
+   137	if_config="CONFIG_ARCH_MULTI_V7"
+   138	config="CONFIG_SMP"
+   139	check_if_set_then_set
+   140	config="CONFIG_SMP_ON_UP"
+   141	check_if_set_then_set
+   142	config="CONFIG_SWP_EMULATE"
+   143	check_if_set_then_set
+   144	
+   145	if_config="CONFIG_ARCH_MULTI_V7"
+   146	config="CONFIG_KERNEL_MODE_NEON"
+   147	check_if_set_then_set
+   148	
+   149	if_config="CONFIG_ARCH_MULTI_V7"
+   150	config="CONFIG_XFS_FS"
+   151	check_if_set_then_set
+   152	config="CONFIG_BTRFS_FS"
+   153	check_if_set_then_set
+   154	
+   155	config="CONFIG_MSDOS_FS"
+   156	check_config_builtin
+   157	
+   158	#debian netinstall
+   159	config="CONFIG_NLS_CODEPAGE_437"
+   160	check_config_builtin
+   161	config="CONFIG_NLS_ISO8859_1"
+   162	check_config_builtin
+   163	
+   164	#systemd : http://cgit.freedesktop.org/systemd/systemd/tree/README#n36
+   165	config="CONFIG_DEVTMPFS"
+   166	check_config_builtin
+   167	config="CONFIG_CGROUPS"
+   168	check_config_builtin
+   169	config="CONFIG_INOTIFY_USER"
+   170	check_config_builtin
+   171	config="CONFIG_SIGNALFD"
+   172	check_config_builtin
+   173	config="CONFIG_TIMERFD"
+   174	check_config_builtin
+   175	config="CONFIG_EPOLL"
+   176	check_config_builtin
+   177	config="CONFIG_NET"
+   178	check_config_builtin
+   179	config="CONFIG_SYSFS"
+   180	check_config_builtin
+   181	config="CONFIG_PROC_FS"
+   182	check_config_builtin
+   183	config="CONFIG_SYSFS_DEPRECATED"
+   184	check_config_disable
+   185	#CONFIG_UEVENT_HELPER_PATH=""
+   186	config="CONFIG_FW_LOADER_USER_HELPER"
+   187	check_config_disable
+   188	#CONFIG_DMIID
+   189	config="CONFIG_FHANDLE"
+   190	check_config_builtin
+   191	config="CONFIG_BLK_DEV_BSG"
+   192	check_config_builtin
+   193	config="CONFIG_IPV6"
+   194	check_config_builtin
+   195	config="CONFIG_AUTOFS4_FS"
+   196	check_config_builtin
+   197	config="CONFIG_TMPFS_POSIX_ACL"
+   198	check_config_builtin
+   199	config="CONFIG_TMPFS_XATTR"
+   200	check_config_builtin
+   201	config="CONFIG_SECCOMP"
+   202	check_config_builtin
+   203	config="CONFIG_SCHEDSTATS"
+   204	check_config_builtin
+   205	config="CONFIG_SCHED_DEBUG"
+   206	check_config_builtin
+   207	#config="CONFIG_AUDIT"
+   208	#check_config_disable
+   209	
+   210	#zram
+   211	config="CONFIG_ZSMALLOC"
+   212	check_config_builtin
+   213	config="CONFIG_ZRAM"
+   214	check_config_module
+   215	
+   216	#ancient...
+   217	config="CONFIG_OABI_COMPAT"
+   218	check_config_disable
+   219	
+   220	config="CONFIG_LOCALVERSION_AUTO"
+   221	check_config_disable
+   222	
+   223	#AM335 usb
+   224	config="CONFIG_AM335X_PHY_USB"
+   225	check_config_builtin
+   226	config="CONFIG_USB_MUSB_HDRC"
+   227	check_config_builtin
+   228	config="CONFIG_USB_MUSB_DUAL_ROLE"
+   229	check_config_builtin
+   230	config="CONFIG_USB_MUSB_DSPS"
+   231	check_config_builtin
+   232	config="CONFIG_USB_MUSB_AM335X_CHILD"
+   233	check_config_builtin
+   234	config="CONFIG_USB_TI_CPPI41_DMA"
+   235	check_config_builtin
+   236	config="CONFIG_TI_CPPI41"
+   237	check_config_builtin
+   238	
+   239	#AM335 hdmi (video)
+   240	config="CONFIG_DRM"
+   241	check_config_builtin
+   242	config="CONFIG_DRM_I2C_NXP_TDA998X"
+   243	check_config_builtin
+   244	config="CONFIG_DRM_TILCDC"
+   245	check_config_builtin
+   246	config="CONFIG_HDMI"
+   247	check_config_builtin
+   248	
+   249	#AM335 hdmi (audio)
+   250	config="CONFIG_SND_DAVINCI_SOC"
+   251	check_config_builtin
+   252	config="CONFIG_SND_AM335X_SOC_NXPTDA_EVM"
+   253	check_config_builtin
+   254	
+   255	#Generic cpufreq
+   256	config="CONFIG_CPU_FREQ"
+   257	check_config_builtin
+   258	config="CONFIG_CPU_FREQ_GOV_COMMON"
+   259	check_config_builtin
+   260	config="CONFIG_CPU_FREQ_STAT"
+   261	check_config_builtin
+   262	config="CONFIG_CPU_FREQ_STAT_DETAILS"
+   263	check_config_builtin
+   264	config="CONFIG_CPU_FREQ_DEFAULT_GOV_PERFORMANCE"
+   265	check_config_builtin
+   266	config="CONFIG_CPU_FREQ_GOV_PERFORMANCE"
+   267	check_config_builtin
+   268	config="CONFIG_CPU_FREQ_GOV_POWERSAVE"
+   269	check_config_builtin
+   270	config="CONFIG_CPU_FREQ_GOV_USERSPACE"
+   271	check_config_builtin
+   272	config="CONFIG_CPU_FREQ_GOV_ONDEMAND"
+   273	check_config_builtin
+   274	config="CONFIG_CPU_FREQ_GOV_CONSERVATIVE"
+   275	check_config_builtin
+   276	config="CONFIG_GENERIC_CPUFREQ_CPU0"
+   277	check_config_builtin
+   278	config="CONFIG_ARM_OMAP2PLUS_CPUFREQ"
+   279	check_config_disable
+   280	
+   281	#

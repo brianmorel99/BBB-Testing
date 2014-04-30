@@ -1,0 +1,302 @@
+     1	#!/bin/bash -e
+     2	#
+     3	# Copyright (c) 2012-2014 Robert Nelson <robertcnelson@gmail.com>
+     4	#
+     5	# Permission is hereby granted, free of charge, to any person obtaining a copy
+     6	# of this software and associated documentation files (the "Software"), to deal
+     7	# in the Software without restriction, including without limitation the rights
+     8	# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+     9	# copies of the Software, and to permit persons to whom the Software is
+    10	# furnished to do so, subject to the following conditions:
+    11	#
+    12	# The above copyright notice and this permission notice shall be included in
+    13	# all copies or substantial portions of the Software.
+    14	#
+    15	# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+    16	# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+    17	# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+    18	# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+    19	# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+    20	# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+    21	# THE SOFTWARE.
+    22	
+    23	VERSION="v2014.01-1"
+    24	
+    25	unset DIR
+    26	
+    27	DIR=$PWD
+    28	
+    29	SDK="5.01.00.01"
+    30	sdk_version="5_01_00_01"
+    31	SDK_DIR="5_01_00_01"
+    32	SGX_SHA="origin/${SDK}"
+    33	#SGX_SHA="origin/master"
+    34	
+    35	http_ti="http://software-dl.ti.com/dsps/dsps_public_sw/gfxsdk/"
+    36	sgx_file="Graphics_SDK_setuplinux_hardfp_${sdk_version}.bin"
+    37	sgx_md5sum="0ee7d59808330d442a51c0990c2cb30e"
+    38	
+    39	dl_sdk () {
+    40		echo "md5sum mis-match: ${md5sum} (re-downloading)"
+    41		wget -c --directory-prefix=${DIR}/dl ${http_ti}${sdk_version}/exports/${sgx_file}
+    42		if [ ! -f ${DIR}/dl/${sgx_file} ] ; then
+    43			echo "network failure"
+    44			exit
+    45		fi
+    46	}
+    47	
+    48	dl_n_verify_sdk () {
+    49		if [ -f "${DIR}/dl/${sgx_file}" ] ; then
+    50			echo "Verifying: ${sgx_file}"
+    51			md5sum=$(md5sum "${DIR}/dl/${sgx_file}" | awk '{print $1}')
+    52			if [ "x${sgx_md5sum}" != "x${md5sum}" ] ; then
+    53				echo "Debug: md5sum mismatch got: ${md5sum}"
+    54				rm -f "${DIR}/dl/${sgx_file}" || true
+    55				dl_sdk
+    56			else
+    57				echo "md5sum match: ${md5sum}"
+    58			fi
+    59		else
+    60			dl_sdk
+    61		fi
+    62	}
+    63	
+    64	install_sgx () {
+    65		if [ ! -f "${DIR}/ignore/SDK_BIN/Graphics_SDK_setuplinux_${sdk_version}/verify.${sgx_md5sum}" ] ; then
+    66			echo "Installing: Graphics_SDK_setuplinux_${sdk_version}"
+    67			if [ -d "${DIR}/ignore/SDK_BIN/Graphics_SDK_setuplinux_${sdk_version}" ] ; then
+    68				rm -rf "${DIR}/ignore/SDK_BIN/Graphics_SDK_setuplinux_${sdk_version}" || true
+    69			fi
+    70			chmod +x "${DIR}"/dl/${sgx_file}
+    71			"${DIR}"/dl/${sgx_file} --mode console --prefix "${DIR}"/ignore/SDK_BIN/Graphics_SDK_setuplinux_${sdk_version} <<-__EOF__
+    72			Y
+    73			qy
+    74		
+    75			__EOF__
+    76			touch "${DIR}"/ignore/SDK_BIN/Graphics_SDK_setuplinux_${sdk_version}/verify.${sgx_md5sum}
+    77		else
+    78			echo "Graphics_SDK_setuplinux_${sdk_version} is installed"
+    79		fi
+    80	}
+    81	
+    82	set_sgx_make_vars () {
+    83		source ${DIR}/.CC
+    84		GRAPHICS_PATH="GRAPHICS_INSTALL_DIR="${DIR}/ignore/ti-sdk-pvr/Graphics_SDK/""
+    85		KERNEL_PATH="KERNEL_INSTALL_DIR="${DIR}/KERNEL""
+    86		USER_VAR="HOME=/home/${USER}"
+    87		CSTOOL_PREFIX=${CC##*/}
+    88	
+    89		#Will probally have to revist this one later...
+    90		CSTOOL_DIR=$(echo ${CC} | awk -F "/bin/${CSTOOL_PREFIX}" '{print $1}')
+    91	
+    92		if [ "x${CSTOOL_PREFIX}" == "x${CSTOOL_DIR}" ] ; then
+    93			CSTOOL_DIR="/usr"
+    94		fi
+    95	
+    96		CROSS="CSTOOL_PREFIX=${CSTOOL_PREFIX} CSTOOL_DIR=${CSTOOL_DIR}"
+    97	}
+    98	
+    99	git_sgx_modules () {
+   100		if [ ! -f "${DIR}/ignore/ti-sdk-pvr/.git/config" ] ; then
+   101			git clone git://github.com/RobertCNelson/ti-sdk-pvr.git "${DIR}/ignore/ti-sdk-pvr/"
+   102			cd "${DIR}/ignore/ti-sdk-pvr/"
+   103			git checkout ${SGX_SHA} -b tmp-build
+   104			cd ${DIR}/
+   105		else
+   106			cd "${DIR}/ignore/ti-sdk-pvr/"
+   107			git add .
+   108			git commit --allow-empty -a -m 'empty cleanup commit'
+   109			git checkout origin/master -b tmp-scratch
+   110			git branch -D tmp-build &>/dev/null || true
+   111			git fetch
+   112			git checkout ${SGX_SHA} -b tmp-build
+   113			git branch -D tmp-scratch &>/dev/null || true
+   114			cd ${DIR}/
+   115		fi
+   116	}
+   117	
+   118	copy_sgx_es () {
+   119		echo "Copying: ${es_version} to build dir"
+   120		mkdir -p "${DIR}/ignore/ti-sdk-pvr/Graphics_SDK/armhf/gfx_rel_${es_version}" || true
+   121		cp -r "${DIR}"/ignore/SDK_BIN/Graphics_SDK_setuplinux_${sdk_version}/gfx_rel_${es_version}/* "${DIR}/ignore/ti-sdk-pvr/Graphics_SDK/armhf/gfx_rel_${es_version}/"
+   122	}
+   123	
+   124	copy_sgx_binaries () {
+   125		if [ -d "${DIR}/ignore/ti-sdk-pvr/Graphics_SDK/armhf" ] ; then
+   126			rm -rf "${DIR}/ignore/ti-sdk-pvr/Graphics_SDK/armhf" || true
+   127			mkdir -p "${DIR}/ignore/ti-sdk-pvr/Graphics_SDK/armhf" || true
+   128		fi
+   129	
+   130		echo "Starting: copying files from the SDK"
+   131		if [  -d "${DIR}/ignore/ti-sdk-pvr/Graphics_SDK/targetfs" ] ; then
+   132			rm -rf "${DIR}/ignore/ti-sdk-pvr/Graphics_SDK/targetfs" || true
+   133		fi
+   134		mkdir -p "${DIR}/ignore/ti-sdk-pvr/Graphics_SDK/targetfs" || true
+   135	
+   136		if [ -d "${DIR}/ignore/ti-sdk-pvr/Graphics_SDK/tools" ] ; then
+   137			rm -rf "${DIR}/ignore/ti-sdk-pvr/Graphics_SDK/tools" || true
+   138		fi
+   139		mkdir -p "${DIR}/ignore/ti-sdk-pvr/Graphics_SDK/tools" || true
+   140	
+   141		cp -r "${DIR}"/ignore/SDK_BIN/Graphics_SDK_setuplinux_${sdk_version}/tools "${DIR}/ignore/ti-sdk-pvr/Graphics_SDK/"
+   142	
+   143	#	es_version="es3.x"
+   144	#	copy_sgx_es
+   145	
+   146	#	es_version="es5.x"
+   147	#	copy_sgx_es
+   148	
+   149	#	es_version="es6.x"
+   150	#	copy_sgx_es
+   151	
+   152		es_version="es8.x"
+   153		copy_sgx_es
+   154	
+   155	#	es_version="es9.x"
+   156	#	copy_sgx_es
+   157	}
+   158	
+   159	clean_sgx_modules () {
+   160		echo "-----------------------------"
+   161		echo "make clean"
+   162		echo "-----------------------------"
+   163		cd "${DIR}/ignore/ti-sdk-pvr/Graphics_SDK/"
+   164		pwd
+   165		echo "make ${GRAPHICS_PATH} ${KERNEL_PATH} HOME=${HOME} ${CROSS} clean"
+   166		make ${GRAPHICS_PATH} ${KERNEL_PATH} HOME=${HOME} ${CROSS} clean &> /dev/null
+   167		cd ${DIR}/
+   168		echo "-----------------------------"
+   169	}
+   170	
+   171	build_sgx_modules () {
+   172		echo "-----------------------------"
+   173		echo "Building es$2 modules"
+   174		echo "-----------------------------"
+   175		cd "${DIR}/ignore/ti-sdk-pvr/Graphics_SDK/"
+   176	
+   177		if [ -d "${DIR}/ignore/ti-sdk-pvr/Graphics_SDK/gfx_rel_es$2/" ] ; then
+   178			rm -rf "${DIR}/ignore/ti-sdk-pvr/Graphics_SDK/gfx_rel_es$2/" || true
+   179		fi
+   180		mkdir -p "${DIR}/ignore/ti-sdk-pvr/Graphics_SDK/gfx_rel_es$2/" || true
+   181	
+   182		pwd
+   183		echo "make BUILD={debug | release} OMAPES={3.x | 5.x | 6.x | 8.x | 9.x} FBDEV={yes | no} all"
+   184		echo "make ${GRAPHICS_PATH} ${KERNEL_PATH} HOME=${HOME} ${CROSS} BUILD="$1" OMAPES="$2" FBDEV="$3" "$4""
+   185		make ${GRAPHICS_PATH} ${KERNEL_PATH} HOME=${HOME} ${CROSS} BUILD="$1" OMAPES="$2" FBDEV="$3" "$4"
+   186		cd ${DIR}/
+   187		echo "-----------------------------"
+   188		echo "modinfo sanity check: vermagic:"
+   189		/sbin/modinfo "${DIR}/ignore/ti-sdk-pvr/Graphics_SDK/gfx_rel_es$2/"pvr* | grep vermagic || true
+   190		echo "-----------------------------"
+   191	}
+   192	
+   193	installing_sgx_modules () {
+   194		echo "-----------------------------"
+   195		echo "Installing es$2 modules"
+   196		echo "-----------------------------"
+   197		cd "${DIR}/ignore/ti-sdk-pvr/Graphics_SDK/"
+   198	
+   199		DESTDIR="${DIR}/deploy/$2"
+   200		if [ -d ${DESTDIR} ] ; then
+   201			rm -rf ${DESTDIR} || true
+   202		fi
+   203		mkdir -p ${DESTDIR} || true
+   204		mkdir -p ${DESTDIR}/etc/init.d/ || true
+   205		mkdir -p ${DESTDIR}/opt/ || true
+   206	
+   207		INSTALL_HOME="${DIR}/ignore/SDK_BIN/"
+   208		GRAPHICS_INSTALL_DIR="${INSTALL_HOME}Graphics_SDK_setuplinux_${sdk_version}"
+   209	
+   210		pwd
+   211		echo "make BUILD=(debug | release} OMAPES={3.x | 5.x | 6.x | 8.x | 9.x} install"
+   212		echo "make DESTDIR=${DESTDIR} HOME=${INSTALL_HOME} GRAPHICS_INSTALL_DIR=${GRAPHICS_INSTALL_DIR} BUILD="$1" OMAPES="$2" "$3""
+   213		make DESTDIR=${DESTDIR} HOME=${INSTALL_HOME} GRAPHICS_INSTALL_DIR=${GRAPHICS_INSTALL_DIR} BUILD="$1" OMAPES="$2" "$3"
+   214	
+   215		OMAPES="$2"
+   216		mkdir -p ${DESTDIR}/opt/gfxmodules/gfx_rel_es${OMAPES} || true
+   217		cp -v "${DIR}"/ignore/ti-sdk-pvr/Graphics_SDK/gfx_rel_es${OMAPES}/*.ko ${DESTDIR}/opt/gfxmodules/gfx_rel_es${OMAPES} || true
+   218	
+   219		#remove devmem2:
+   220		find "${DESTDIR}/" -name "devmem2" -exec rm -rf {} \;
+   221		rm -rf ${DESTDIR}/etc/init.d/335x-demo || true
+   222		rm -rf ${DESTDIR}/etc/init.d/rc.pvr || true
+   223	
+   224		mkdir -p ${DESTDIR}/opt/gfxinstall/scripts/ || true
+   225		cp -v "${DIR}"/3rdparty/sgx-startup-debian.sh ${DESTDIR}/opt/gfxinstall/scripts/
+   226		cp -v "${DIR}"/3rdparty/sgx-startup-ubuntu.conf ${DESTDIR}/opt/gfxinstall/scripts/
+   227		cp -v "${DIR}"/3rdparty/sgx-install.sh ${DESTDIR}/opt/gfxinstall/
+   228		chmod +x ${DESTDIR}/opt/gfxinstall/sgx-install.sh
+   229	
+   230		cd ${DESTDIR}/
+   231		tar czf ${DIR}/deploy/GFX_${SDK}.tar.gz *
+   232		cd "${DIR}/ignore/ti-sdk-pvr/Graphics_SDK/"
+   233	}
+   234	
+   235	if [ -e ${DIR}/system.sh ] ; then
+   236		source ${DIR}/system.sh
+   237		source ${DIR}/version.sh
+   238	
+   239		if [ ! -d "${DIR}/ignore/" ] ; then
+   240			mkdir "${DIR}/ignore/"
+   241		fi
+   242	
+   243		dl_n_verify_sdk
+   244		install_sgx
+   245	
+   246		set_sgx_make_vars
+   247	
+   248		git_sgx_modules
+   249		copy_sgx_binaries
+   250	
+   251		#No reason to rebuild the sdk...
+   252		sed -i -e 's:all_km all_sdk:all_km:g' "${DIR}/ignore/ti-sdk-pvr/Graphics_SDK/Makefile"
+   253		sed -i -e 's:install_km install_sdk:install_km:g' "${DIR}/ignore/ti-sdk-pvr/Graphics_SDK/Makefile"
+   254	
+   255		#Disable building of devmem2, as it breaks with hardfp based cross compilers, and we use the distro package anyways...
+   256		sed -i -e 's:prepare_km buildkernel builddevmem2:prepare_km buildkernel:g' "${DIR}/ignore/ti-sdk-pvr/Graphics_SDK/Makefile.KM"
+   257	
+   258		if [ ! -f "${DIR}/KERNEL/Makefile" ] ; then
+   259			echo ""
+   260			echo "ERROR: Run: ./build_kernel.sh first"
+   261			echo ""
+   262			exit
+   263		fi
+   264	
+   265		#Build:
+   266		#make BUILD={debug | release} OMAPES={3.x | 5.x | 6.x | 8.x | 9.x} FBDEV={yes | no} all
+   267		#Install:
+   268		#make BUILD=(debug | release} OMAPES={3.x | 5.x | 6.x | 8.x | 9.x} install
+   269	
+   270	#	clean_sgx_modules
+   271	#	build_sgx_modules release 3.x yes all
+   272	
+   273	#	clean_sgx_modules
+   274	#	build_sgx_modules release 5.x yes all
+   275	
+   276	#	clean_sgx_modules
+   277	#	build_sgx_modules release 6.x yes all
+   278	
+   279		clean_sgx_modules
+   280		build_sgx_modules release 8.x no all
+   281		installing_sgx_modules release 8.x install
+   282	
+   283	#	clean_sgx_modules
+   284	#	build_sgx_modules release 9.x yes all
+   285	
+   286		#Disable when debugging...
+   287		if [ -d "${DIR}/ignore/ti-sdk-pvr/pkg/" ] ; then
+   288			rm -rf "${DIR}/ignore/ti-sdk-pvr/pkg" || true
+   289		fi
+   290		if [ -d "${DIR}/ignore/ti-sdk-pvr/examples/" ] ; then
+   291			rm -rf "${DIR}/ignore/ti-sdk-pvr/examples" || true
+   292		fi
+   293	
+   294	else
+   295		echo ""
+   296		echo "ERROR: Missing (your system) specific system.sh, please copy system.sh.sample to system.sh and edit as needed."
+   297		echo ""
+   298		echo "example: cp system.sh.sample system.sh"
+   299		echo "example: gedit system.sh"
+   300		echo ""
+   301	fi
+   302	

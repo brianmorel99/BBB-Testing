@@ -1,0 +1,851 @@
+===== Original File
+* https://raw.githubusercontent.com/RobertCNelson/linux-dev/am33x-v3.14/build_kernel.sh
+
+Copyright notice of Excellent Script !!
+[source, sh]
+----
+     3	# Copyright (c) 2009-2014 Robert Nelson <robertcnelson@gmail.com>
+     4	#
+     5	# Permission is hereby granted, free of charge, to any person obtaining a copy
+     6	# of this software and associated documentation files (the "Software"), to deal
+     7	# in the Software without restriction, including without limitation the rights
+     8	# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+     9	# copies of the Software, and to permit persons to whom the Software is
+    10	# furnished to do so, subject to the following conditions:
+    11	#
+    12	# The above copyright notice and this permission notice shall be included in
+    13	# all copies or substantial portions of the Software.
+    14	#
+    15	# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+    16	# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+    17	# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+    18	# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+    19	# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+    20	# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+    21	# THE SOFTWARE.
+----
+Shell arguement “-e” tells the shell to exit if anything returns non-zero (error) on exit
+[source,sh]
+----
+     1	#!/bin/sh -e
+----
+Set variable $DIR to the directory the script was called from.
+[source,sh]
+----
+    23	DIR=$PWD
+----
+Create a sub-directory for build results.
+[source,sh]
+----
+    25	mkdir -p ${DIR}/deploy/
+----
+Call a Host detection Script.  This basically makes sure required pakages are installed.
+[source,sh]
+----
+   203	/bin/sh -e ${DIR}/tools/host_det.sh || { exit 1 ; }
+----
+Check for an existing system.sh script.  If it doesn’t exist, use the sample 
+[source,sh]
+----
+   205	if [ ! -f ${DIR}/system.sh ] ; then
+   206		cp ${DIR}/system.sh.sample ${DIR}/system.sh
+----
+If one exits, fix it to be run by sh.
+[source,sh]
+----
+   207	else
+   208		#fixes for bash -> sh conversion...
+   209		sed -i 's/bash/sh/g' ${DIR}/system.sh
+   210		sed -i 's/==/=/g' ${DIR}/system.sh
+   211	fi
+----
+Not Sure?
+[source,sh]
+----
+   213	if [ -f "${DIR}/branches.list" ] ; then
+   214		echo "-----------------------------"
+   215		echo "Please checkout one of the active branches:"
+   216		echo "-----------------------------"
+   217		cat ${DIR}/branches.list | grep -v INACTIVE
+   218		echo "-----------------------------"
+   219		exit
+   220	fi
+----
+Not Sure Either?
+[source,sh]
+----
+   222	if [ -f "${DIR}/branch.expired" ] ; then
+   223		echo "-----------------------------"
+   224		echo "Support for this branch has expired."
+   225		unset response
+   226		echo -n "Do you wish to bypass this warning and support your self: (y/n)? "
+   227		read response
+   228		if [ "x${response}" != "xy" ] ; then
+   229			exit
+   230		fi
+   231		echo "-----------------------------"
+   232	fi
+----
+Unset some variables then call the system.sh script (sort of?)
+[source,sh]
+----
+   234	unset CC
+   235	unset LINUX_GIT
+   236	. ${DIR}/system.sh
+----
+Call Script gcc.sh
+[source,sh]
+----
+   237	/bin/sh -e "${DIR}/scripts/gcc.sh" || { exit 1 ; }
+----
+Call a file (created by gcc.sh script) to set up variable $CC & echo it for debugging purposes ( In existing shell session )
+[source,sh]
+----
+   238	. ${DIR}/.CC
+   239	echo "debug: CC=${CC}"
+----
+Call Script version.sh ( I existing shell session )
+[source,sh]
+----
+   241	. ${DIR}/version.sh
+----
+Export LINUX_GIT variable
+[source,sh]
+----
+   242	export LINUX_GIT
+----
+Set up a variable to decide if a Full Rebuild should be done. ( Appears to always happen? )
+[source,sh]
+----
+   244	#unset FULL_REBUILD
+   245	FULL_REBUILD=1
+   246	if [ "${FULL_REBUILD}" ] ; then
+----
+Call git.sh script
+[source,sh]
+----
+   247		/bin/sh -e "${DIR}/scripts/git.sh" || { exit 1 ; }
+----
+Check to See if RUN_BISECT variable is set & is so, bisect.sh script runs
+[source,sh]
+----
+   249		if [ "${RUN_BISECT}" ] ; then
+   250			/bin/sh -e "${DIR}/scripts/bisect.sh" || { exit 1 ; }
+   251		fi
+----
+Run patch_kernel Function
+[source,sh]
+----
+   253		patch_kernel
+----
+
+[source,sh]
+----
+    27	patch_kernel () {
+----
+Change into the KERNEL directory
+[source,sh]
+----
+    28		cd ${DIR}/KERNEL
+----
+Export some variables
+[source,sh]
+----
+    30		export DIR GIT_OPTS
+----
+Call patch.sh script
+[source,sh]
+----
+    31		/bin/sh -e ${DIR}/patch.sh || { git add . ; exit 1 ; }
+----
+Check RUN_BISECT variable, if true do some stuff.
+[source,sh]
+----
+    33		if [ ! "${RUN_BISECT}" ] ; then
+    34			git add --all
+    35			git commit --allow-empty -a -m "${KERNEL_TAG}-${BUILD} patchset"
+    36		fi
+----
+Change back to original directory & exit function
+[source,sh]
+----
+    38		cd ${DIR}/
+    39	}
+----
+Run copy_defconfig Function
+[source,sh]
+----
+   254		copy_defconfig
+----
+[source,sh]
+----
+    41	copy_defconfig () {
+----
+Change into the KERNEL directory
+[source,sh]
+----
+    42		cd ${DIR}/KERNEL/
+----
+Call "make distclean" with Arch set to Arm & Cross Compiler
+[source,sh]
+----
+    43		make ARCH=arm CROSS_COMPILE=${CC} distclean
+----
+Build package with $config which is "omap2plus_defconfig"
+[source,sh]
+----
+    44		make ARCH=arm CROSS_COMPILE=${CC} ${config}
+----
+Copy the resulting config to ref_omap2plus_defconfig
+[source,sh]
+----
+    45		cp -v .config ${DIR}/patches/ref_${config}
+----
+Copy defconfig to the config & return to directory called from.
+[source,sh]
+----
+    46		cp -v ${DIR}/patches/defconfig .config
+    47		cd ${DIR}/
+    48	}
+----
+End full rebuild if block
+[source,sh]
+----
+   255	fi
+----
+Check to see if $AUTO_BUILD variable is set. If not, call make_menuconfig Function
+[source,sh]
+----
+   256	if [ ! ${AUTO_BUILD} ] ; then
+   257		make_menuconfig
+----
+
+[source,sh]
+----
+    50	make_menuconfig () {
+----
+Change into the KERNEL source directory
+[source,sh]
+----
+    51		cd ${DIR}/KERNEL/
+----
+Run menuconfig make target
+[source,sh]
+----
+    52		make ARCH=arm CROSS_COMPILE=${CC} menuconfig
+----
+Copy the .config that you just configured to defconfig & return to calling directory.
+[source,sh]
+----
+    53		cp -v .config ${DIR}/patches/defconfig
+    54		cd ${DIR}/
+    55	}
+----
+
+[source,sh]
+----
+   258	fi
+----
+Call make_kernel Function
+[source,sh]
+----
+   259	make_kernel
+----
+
+[source,sh]
+----
+    57	make_kernel () {
+----
+Set image variable to "zImage" & clear address variable
+[source,sh]
+----
+    58		image="zImage"
+    59		unset address
+----
+Notes for the older uImage process
+[source,sh]
+----
+    61		#uImage, if you really really want a uImage, zreladdr needs to be defined on the build line going forward...
+    62		#image="uImage"
+    63		#address="LOADADDR=${ZRELADDR}"
+----
+Change into KERNEL source directory & tell user what is about to happen
+[source,sh]
+----
+    65		cd ${DIR}/KERNEL/
+    66		echo "-----------------------------"
+    67		echo "make -j${CORES} ARCH=arm LOCALVERSION=-${BUILD} CROSS_COMPILE=${CC} ${address} ${image} modules"
+    68		echo "-----------------------------"
+----
+Run make setting the # of build threads, Arch & Localverison variables.  Making zImage & modules
+[source,sh]
+----
+    69		make -j${CORES} ARCH=arm LOCALVERSION=-${BUILD} CROSS_COMPILE=${CC} ${address} ${image} modules
+----
+Clear the $DTBS variable then seach the arm Makefile to see if "dtbs:" string exists.  If so set DTBS = "enable"
+[source,sh]
+----
+    71		unset DTBS
+    72		cat ${DIR}/KERNEL/arch/arm/Makefile | grep "dtbs:" >/dev/null 2>&1 && DTBS=enable
+----
+Need to look into why this is.
+[source,sh]
+----
+    74		#FIXME: Starting with v3.15-rc0
+----
+Clear the $has_dtbs_install variable.
+[source,sh]
+----
+    75		unset has_dtbs_install
+----
+If DTBS isn't enabled, check arm Make file for string "dtbs dtbs_install:", & set DTBS = "enable"
+[source,sh]
+----
+    76		if [ "x${DTBS}" = "x" ] ; then
+    77			cat ${DIR}/KERNEL/arch/arm/Makefile | grep "dtbs dtbs_install:" >/dev/null 2>&1 && DTBS=enable
+----
+If the "dtbs dtbs_install:" string existed also set $has_dtbs_install = "enable"
+[source,sh]
+----
+    78			if [ "x${DTBS}" = "xenable" ] ; then
+    79				has_dtbs_install=enable
+    80			fi
+    81		fi
+----
+If DTBS is enabled, tell user what's about to happen.
+[source,sh]
+----
+    83		if [ "x${DTBS}" = "xenable" ] ; then
+    84			echo "-----------------------------"
+    85			echo "make -j${CORES} ARCH=arm LOCALVERSION=-${BUILD} CROSS_COMPILE=${CC} dtbs"
+    86			echo "-----------------------------"
+----
+Run make dtbs w/ proper variables set.
+[source,sh]
+----
+    87			make -j${CORES} ARCH=arm LOCALVERSION=-${BUILD} CROSS_COMPILE=${CC} dtbs
+----
+** Double Check ** If dtb was build, clear variable $DTBS
+[source,sh]
+----
+    88			ls arch/arm/boot/* | grep dtb >/dev/null 2>&1 || unset DTBS
+    89		fi
+----
+Set the $KERNEL_UTS variable to the version of the kernel just built.
+[source,sh]
+----
+    91		KERNEL_UTS=$(cat ${DIR}/KERNEL/include/generated/utsrelease.h | awk '{print $3}' | sed 's/\"//g' )
+----
+Check to see if there is an old version in the deploy directory.  If so, remove it & it's config file.
+[source,sh]
+----
+    93		if [ -f "${DIR}/deploy/${KERNEL_UTS}.${image}" ] ; then
+    94			rm -rf "${DIR}/deploy/${KERNEL_UTS}.${image}" || true
+    95			rm -rf "${DIR}/deploy/config-${KERNEL_UTS}" || true
+    96		fi
+----
+Verify that the image was built.
+[source,sh]
+----
+    98		if [ -f ./arch/arm/boot/${image} ] ; then
+----
+Check $AUTO_TESTER variable & do stff if enabled.
+[source,sh]
+----
+    99			if [ ${AUTO_TESTER} ] ; then
+   100				mkdir -p "${DIR}/deploy/beagleboard.org/${KERNEL_UTS}/" || true
+   101				cp -uv arch/arm/boot/${image} "${DIR}/deploy/beagleboard.org/${KERNEL_UTS}/${KERNEL_UTS}.${image}"
+   102				xz -z "${DIR}/deploy/beagleboard.org/${KERNEL_UTS}/${KERNEL_UTS}.${image}"
+   103				mkimage -A arm -O linux -T kernel -C none -a 0x80008000 -e 0x80008000 -n ${KERNEL_UTS} -d arch/arm/boot/zImage "${DIR}/deploy/beagleboard.org/${KERNEL_UTS}/${KERNEL_UTS}.uImage"
+   104				xz -z "${DIR}/deploy/beagleboard.org/${KERNEL_UTS}/${KERNEL_UTS}.uImage"
+   105				cp -uv .config "${DIR}/deploy/beagleboard.org/${KERNEL_UTS}/config-${KERNEL_UTS}"
+   106			fi
+----
+Copy the compiled image & config file to the deploy directory  
+[source,sh]
+----
+   107			cp -v arch/arm/boot/${image} "${DIR}/deploy/${KERNEL_UTS}.${image}"
+   108			cp -v .config "${DIR}/deploy/config-${KERNEL_UTS}"
+   109		fi
+----
+Return to the directory the script was called from.
+[source,sh]
+----
+   111		cd ${DIR}/
+----
+Check to make sure the image was compiled & moved correctly.
+[source,sh]
+----
+   113		if [ ! -f "${DIR}/deploy/${KERNEL_UTS}.${image}" ] ; then
+----
+If something went wrong, export an error message , call error.sh script & exit.
+[source,sh]
+----
+   114			export ERROR_MSG="File Generation Failure: [${KERNEL_UTS}.${image}]"
+   115			/bin/sh -e "${DIR}/scripts/error.sh" && { exit 1 ; }
+   116		else
+----
+Display the image just built.
+[source,sh]
+----
+   117			ls -lh "${DIR}/deploy/${KERNEL_UTS}.${image}"
+   118		fi
+   119	}
+----
+Call make_modules_pkg Function
+[source,sh]
+----
+   260	make_modules_pkg
+----
+
+[source,sh]
+----
+   181	make_modules_pkg () {
+----
+Set $pkg variable to "modules" & call make_pkg function
+[source,sh]
+----
+   182		pkg="modules"
+   183		make_pkg
+----
+
+[source,sh]
+----
+   121	make_pkg () {
+----
+Change into KERNEL source directory
+[source,sh]
+----
+   122		cd ${DIR}/KERNEL/
+----
+Set up some variables that define the name of the package file to be created & how to create it.
+[source,sh]
+----
+   124		deployfile="-${pkg}.tar.gz"
+   125		tar_options="--create --gzip --file"
+----
+Auto tester stuff.
+[source,sh]
+----
+   127		if [ "${AUTO_TESTER}" ] ; then
+   128			#FIXME: xz might not be available everywhere...
+   129			#FIXME: ./tools/install_kernel.sh needs update...
+   130			deployfile="-${pkg}.tar.xz"
+   131			tar_options="--create --xz --file"
+   132		fi
+----
+Check to see if an old version of the package file exists & delete if so.
+[source,sh]
+----
+   134		if [ -f "${DIR}/deploy/${KERNEL_UTS}${deployfile}" ] ; then
+   135			rm -rf "${DIR}/deploy/${KERNEL_UTS}${deployfile}" || true
+   136		fi
+----
+Check to see if an old temperary directory existis & delete if so.
+[source,sh]
+----
+   138		if [ -d ${DIR}/deploy/tmp ] ; then
+   139			rm -rf ${DIR}/deploy/tmp || true
+   140		fi
+----
+Create the temperary directory about to be used.
+[source,sh]
+----
+   141		mkdir -p ${DIR}/deploy/tmp
+----
+Tell user what is about to happen.
+[source,sh]
+----
+   143		echo "-----------------------------"
+   144		echo "Building ${pkg} archive..."
+----
+Run make modules_install to install the modules to the tmp directory
+[source,sh]
+----
+   146		case "${pkg}" in
+   147		modules)
+   148			make -s ARCH=arm CROSS_COMPILE=${CC} modules_install INSTALL_MOD_PATH=${DIR}/deploy/tmp
+   149			;;
+   150		firmware)
+   151			make -s ARCH=arm CROSS_COMPILE=${CC} firmware_install INSTALL_FW_PATH=${DIR}/deploy/tmp
+   152			;;
+   153		dtbs)
+   154			if [ "x${has_dtbs_install}" = "xenable" ] ; then
+   155				make -s ARCH=arm LOCALVERSION=-${BUILD} CROSS_COMPILE=${CC} dtbs_install INSTALL_DTBS_PATH=${DIR}/deploy/tmp
+   156			else
+   157				find ./arch/arm/boot/ -iname "*.dtb" -exec cp -v '{}' ${DIR}/deploy/tmp/ \;
+   158			fi
+   159			;;
+   160		esac
+----
+Tell the user what's about to happen & change into the temperary directory.
+[source,sh]
+----
+   162		echo "Compressing ${KERNEL_UTS}${deployfile}..."
+   163		cd ${DIR}/deploy/tmp
+----
+Compress the files with the settings from earlier & the name set earlier.  Save file in directory above temperary directory.
+[source,sh]
+----
+   164		tar ${tar_options} ../${KERNEL_UTS}${deployfile} *
+----
+More auto tester stuff.
+[source,sh]
+----
+   166		if [ ${AUTO_TESTER} ] ; then
+   167			cp -uv ../${KERNEL_UTS}${deployfile} "${DIR}/deploy/beagleboard.org/${KERNEL_UTS}/"
+   168		fi
+----
+Change back to original directory script called from.
+[source,sh]
+----
+   170		cd ${DIR}/.
+----
+Delete the temperary directory.
+[source,sh]
+----
+   171		rm -rf ${DIR}/deploy/tmp || true
+----
+Check to make sure the file was built.
+[source,sh]
+----
+   173		if [ ! -f "${DIR}/deploy/${KERNEL_UTS}${deployfile}" ] ; then
+----
+If something went wrong, export an error message , call error.sh script & exit.
+[source,sh]
+----
+   174			export ERROR_MSG="File Generation Failure: [${KERNEL_UTS}${deployfile}]"
+   175			/bin/sh -e "${DIR}/scripts/error.sh" && { exit 1 ; }
+   176		else
+----
+Display file just built.
+[source,sh]
+----
+   177			ls -lh "${DIR}/deploy/${KERNEL_UTS}${deployfile}"
+   178		fi
+   179	}
+----
+End of make_modules_pkg function
+[source,sh]
+----
+   184	}
+----
+Call make_firmware_pkg Function
+[source,sh]
+----
+   261	make_firmware_pkg
+----
+
+[source,sh]
+----
+   186	make_firmware_pkg () {
+----
+Set $pkg variable to "firmware" & call make_pkg function
+[source,sh]
+----
+   187		pkg="firmware"
+   188		make_pkg
+----
+
+[source,sh]
+----
+   121	make_pkg () {
+----
+Change into KERNEL source directory
+[source,sh]
+----
+   122		cd ${DIR}/KERNEL/
+----
+Set up some variables that define the name of the package file to be created & how to create it.
+[source,sh]
+----
+   124		deployfile="-${pkg}.tar.gz"
+   125		tar_options="--create --gzip --file"
+----
+Auto tester stuff.
+[source,sh]
+----
+   127		if [ "${AUTO_TESTER}" ] ; then
+   128			#FIXME: xz might not be available everywhere...
+   129			#FIXME: ./tools/install_kernel.sh needs update...
+   130			deployfile="-${pkg}.tar.xz"
+   131			tar_options="--create --xz --file"
+   132		fi
+----
+Check to see if an old version of the package file exists & delete if so.
+[source,sh]
+----
+   134		if [ -f "${DIR}/deploy/${KERNEL_UTS}${deployfile}" ] ; then
+   135			rm -rf "${DIR}/deploy/${KERNEL_UTS}${deployfile}" || true
+   136		fi
+----
+Check to see if an old temperary directory existis & delete if so.
+[source,sh]
+----
+   138		if [ -d ${DIR}/deploy/tmp ] ; then
+   139			rm -rf ${DIR}/deploy/tmp || true
+   140		fi
+----
+Create the temperary directory about to be used.
+[source,sh]
+----
+   141		mkdir -p ${DIR}/deploy/tmp
+----
+Tell user what is about to happen.
+[source,sh]
+----
+   143		echo "-----------------------------"
+   144		echo "Building ${pkg} archive..."
+----
+Run make firmware_install to install the firmware to the tmp directory
+[source,sh]
+----
+   146		case "${pkg}" in
+   147		modules)
+   148			make -s ARCH=arm CROSS_COMPILE=${CC} modules_install INSTALL_MOD_PATH=${DIR}/deploy/tmp
+   149			;;
+   150		firmware)
+   151			make -s ARCH=arm CROSS_COMPILE=${CC} firmware_install INSTALL_FW_PATH=${DIR}/deploy/tmp
+   152			;;
+   153		dtbs)
+   154			if [ "x${has_dtbs_install}" = "xenable" ] ; then
+   155				make -s ARCH=arm LOCALVERSION=-${BUILD} CROSS_COMPILE=${CC} dtbs_install INSTALL_DTBS_PATH=${DIR}/deploy/tmp
+   156			else
+   157				find ./arch/arm/boot/ -iname "*.dtb" -exec cp -v '{}' ${DIR}/deploy/tmp/ \;
+   158			fi
+   159			;;
+   160		esac
+----
+Tell the user what's about to happen & change into the temperary directory.
+[source,sh]
+----
+   162		echo "Compressing ${KERNEL_UTS}${deployfile}..."
+   163		cd ${DIR}/deploy/tmp
+----
+Compress the files with the settings from earlier & the name set earlier.  Save file in directory above temperary directory.
+[source,sh]
+----
+   164		tar ${tar_options} ../${KERNEL_UTS}${deployfile} *
+----
+More auto tester stuff.
+[source,sh]
+----
+   166		if [ ${AUTO_TESTER} ] ; then
+   167			cp -uv ../${KERNEL_UTS}${deployfile} "${DIR}/deploy/beagleboard.org/${KERNEL_UTS}/"
+   168		fi
+----
+Change back to original directory script called from.
+[source,sh]
+----
+   170		cd ${DIR}/.
+----
+Delete the temperary directory.
+[source,sh]
+----
+   171		rm -rf ${DIR}/deploy/tmp || true
+----
+Check to make sure the file was built.
+[source,sh]
+----
+   173		if [ ! -f "${DIR}/deploy/${KERNEL_UTS}${deployfile}" ] ; then
+----
+If something went wrong, export an error message , call error.sh script & exit.
+[source,sh]
+----
+   174			export ERROR_MSG="File Generation Failure: [${KERNEL_UTS}${deployfile}]"
+   175			/bin/sh -e "${DIR}/scripts/error.sh" && { exit 1 ; }
+   176		else
+----
+Display file just built.
+[source,sh]
+----
+   177			ls -lh "${DIR}/deploy/${KERNEL_UTS}${deployfile}"
+   178		fi
+   179	}
+----
+End of make_firmware_pkg function
+[source,sh]
+----
+   184	}
+----
+Check to see if DTBS variable = “enable”, if so call Make DTBS Package Function
+[source,sh]
+----
+   262	if [ "x${DTBS}" = "xenable" ] ; then
+   263		make_dtbs_pkg
+----
+
+[source,sh]
+----
+   191	make_dtbs_pkg () {
+----
+Set $pkg variable to "dtbs" & call make_pkg function
+[source,sh]
+----
+   192		pkg="dtbs"
+   193		make_pkg
+----
+
+[source,sh]
+----
+   121	make_pkg () {
+----
+Change into KERNEL source directory
+[source,sh]
+----
+   122		cd ${DIR}/KERNEL/
+----
+Set up some variables that define the name of the package file to be created & how to create it.
+[source,sh]
+----
+   124		deployfile="-${pkg}.tar.gz"
+   125		tar_options="--create --gzip --file"
+----
+Auto tester stuff.
+[source,sh]
+----
+   127		if [ "${AUTO_TESTER}" ] ; then
+   128			#FIXME: xz might not be available everywhere...
+   129			#FIXME: ./tools/install_kernel.sh needs update...
+   130			deployfile="-${pkg}.tar.xz"
+   131			tar_options="--create --xz --file"
+   132		fi
+----
+Check to see if an old version of the package file exists & delete if so.
+[source,sh]
+----
+   134		if [ -f "${DIR}/deploy/${KERNEL_UTS}${deployfile}" ] ; then
+   135			rm -rf "${DIR}/deploy/${KERNEL_UTS}${deployfile}" || true
+   136		fi
+----
+Check to see if an old temperary directory existis & delete if so.
+[source,sh]
+----
+   138		if [ -d ${DIR}/deploy/tmp ] ; then
+   139			rm -rf ${DIR}/deploy/tmp || true
+   140		fi
+----
+Create the temperary directory about to be used.
+[source,sh]
+----
+   141		mkdir -p ${DIR}/deploy/tmp
+----
+Tell user what is about to happen.
+[source,sh]
+----
+   143		echo "-----------------------------"
+   144		echo "Building ${pkg} archive..."
+----
+Enter dtbspart of switch statement
+[source,sh]
+----
+   146		case "${pkg}" in
+   147		modules)
+   148			make -s ARCH=arm CROSS_COMPILE=${CC} modules_install INSTALL_MOD_PATH=${DIR}/deploy/tmp
+   149			;;
+   150		firmware)
+   151			make -s ARCH=arm CROSS_COMPILE=${CC} firmware_install INSTALL_FW_PATH=${DIR}/deploy/tmp
+   152			;;
+   153		dtbs)
+----
+If there is a dtbs_install target, run it.
+[source,sh]
+----
+   154			if [ "x${has_dtbs_install}" = "xenable" ] ; then
+   155				make -s ARCH=arm LOCALVERSION=-${BUILD} CROSS_COMPILE=${CC} dtbs_install INSTALL_DTBS_PATH=${DIR}/deploy/tmp
+----
+Otherwise find & copy *.dtb files to the temporary directory.
+[source,sh]
+----
+   156			else
+   157				find ./arch/arm/boot/ -iname "*.dtb" -exec cp -v '{}' ${DIR}/deploy/tmp/ \;
+   158			fi
+   159			;;
+   160		esac
+----
+Tell the user what's about to happen & change into the temperary directory.
+[source,sh]
+----
+   162		echo "Compressing ${KERNEL_UTS}${deployfile}..."
+   163		cd ${DIR}/deploy/tmp
+----
+Compress the files with the settings from earlier & the name set earlier.  Save file in directory above temperary directory.
+[source,sh]
+----
+   164		tar ${tar_options} ../${KERNEL_UTS}${deployfile} *
+----
+More auto tester stuff.
+[source,sh]
+----
+   166		if [ ${AUTO_TESTER} ] ; then
+   167			cp -uv ../${KERNEL_UTS}${deployfile} "${DIR}/deploy/beagleboard.org/${KERNEL_UTS}/"
+   168		fi
+----
+Change back to original directory script called from.
+[source,sh]
+----
+   170		cd ${DIR}/.
+----
+Delete the temperary directory.
+[source,sh]
+----
+   171		rm -rf ${DIR}/deploy/tmp || true
+----
+Check to make sure the file was built.
+[source,sh]
+----
+   173		if [ ! -f "${DIR}/deploy/${KERNEL_UTS}${deployfile}" ] ; then
+----
+If something went wrong, export an error message , call error.sh script & exit.
+[source,sh]
+----
+   174			export ERROR_MSG="File Generation Failure: [${KERNEL_UTS}${deployfile}]"
+   175			/bin/sh -e "${DIR}/scripts/error.sh" && { exit 1 ; }
+   176		else
+----
+Display file just built.
+[source,sh]
+----
+   177			ls -lh "${DIR}/deploy/${KERNEL_UTS}${deployfile}"
+   178		fi
+   179	}
+----
+End of make_dtbs_pkg function
+[source,sh]
+----
+   184	}
+----
+End the dtbs if block
+[source,sh]
+----
+   264	fi
+----
+Check to see if AUTO_TESTER variable is set.  If so, call Update Latest Function.
+[source,sh]
+----
+   265	if [ "${AUTO_TESTER}" ] ; then
+   266		update_latest
+----
+Autotester stuff.
+[source,sh]
+----
+   196	update_latest () {
+   197		echo "#!/bin/sh -e" > "${DIR}/deploy/beagleboard.org/latest"
+   198		echo "abi=aac" >> "${DIR}/deploy/beagleboard.org/latest"
+   199		echo "kernel=${KERNEL_UTS}" >> "${DIR}/deploy/beagleboard.org/latest"
+   200		cp -uv ./tools/test-me.sh "${DIR}/deploy/beagleboard.org/"
+   201	}
+----
+
+[source,sh]
+----
+   267	fi
+----
+Finish Script by telling user what was built.
+[source,sh]
+----
+   268	echo "-----------------------------"
+   269	echo "Script Complete"
+   270	echo "eewiki.net: [user@localhost:~$ export kernel_version=${KERNEL_UTS}]"
+   271	echo "-----------------------------"
+----
