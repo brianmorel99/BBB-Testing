@@ -1,8 +1,10 @@
-[source,sh]
+===== Original File
+* https://raw.githubusercontent.com/RobertCNelson/linux-dev/am33x-v3.14/patch.sh
+
+Copyright notice of Excellent Script !!
+[source, sh]
 ----
-     1	#!/bin/sh
-     2	#
-     3	# Copyright (c) 2009-2013 Robert Nelson <robertcnelson@gmail.com>
+     3	# Copyright (c) 2009-2014 Robert Nelson <robertcnelson@gmail.com>
      4	#
      5	# Permission is hereby granted, free of charge, to any person obtaining a copy
      6	# of this software and associated documentation files (the "Software"), to deal
@@ -21,21 +23,169 @@
     19	# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
     20	# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
     21	# THE SOFTWARE.
-    22	
-    23	# Split out, so build_kernel.sh and build_deb.sh can share..
-    24	
+----
+Shell arguement (No '-e' on this one?)
+[source,sh]
+----
+     1	#!/bin/sh -e
+----
+Set $git variable to "git am".
+[source,sh]
+----
     25	git="git am"
-    26	
+----
+Check to see if the system.sh script file exists & if so, run the commands it contains in the current shell environment.
+[source,sh]
+----
     27	if [ -f ${DIR}/system.sh ] ; then
     28		. ${DIR}/system.sh
     29	fi
-    30	
+----
+If the $RUN_BISECT variable is set, change the value of the $git variable to "git apply".
+[source,sh]
+----
     31	if [ "${RUN_BISECT}" ] ; then
     32		git="git apply"
     33	fi
-    34	
+----
+Tell user what is happening.
+[source,sh]
+----
     35	echo "Starting patch.sh"
-    36	
+----
+Start Calling Functions to patch the kernel.  First one is dts.
+[source,sh]
+----
+   115	dts
+----
+
+[source,sh]
+----   
+    53	dts () {
+    54		echo "dir: dts"
+    55		${git} "${DIR}/patches/dts/0001-arm-dts-am335x-boneblack-lcdc-add-panel-info.patch"
+    56		${git} "${DIR}/patches/dts/0002-arm-dts-am335x-boneblack-add-cpu0-opp-points.patch"
+    57		${git} "${DIR}/patches/dts/0003-arm-dts-am335x-bone-common-enable-and-use-i2c2.patch"
+    58		${git} "${DIR}/patches/dts/0004-arm-dts-am335x-bone-common-setup-default-pinmux-http.patch"
+    59	}
+----
+Next up is the fixes function.
+[source,sh]
+----
+   116	fixes
+----
+
+[source,sh]
+----
+    61	fixes () {
+    62		echo "dir: fixes"
+    63		${git} "${DIR}/patches/fixes/0001-pinctrl-pinctrl-single-must-be-initialized-early.patch"
+    64	}
+----
+Next is usb function.
+[source,sh]
+----
+   117	usb
+----
+
+[source,sh]
+----
+    66	usb  () {
+    67		echo "dir: usb"
+    68		${git} "${DIR}/patches/usb/0001-usb-musb-musb_host-Enable-ISOCH-IN-handling-for-AM33.patch"
+    69		${git} "${DIR}/patches/usb/0002-usb-musb-musb_cppi41-Make-CPPI-aware-of-high-bandwid.patch"
+    70		${git} "${DIR}/patches/usb/0003-usb-musb-musb_cppi41-Handle-ISOCH-differently-and-no.patch"
+    71	}
+----
+Next is dts_bone function.
+[source,sh]
+----
+   120	dts_bone
+----
+
+[source,sh]
+----
+    84	dts_bone () {
+    85		echo "dir: dts-bone"
+    86		${git} "${DIR}/patches/dts-bone/0001-arm-dts-am335x-bone-common-add-uart2_pins-uart4_pins.patch"
+    87	
+    88	}
+----
+Next is dts_bone_capes function.
+[source,sh]
+----
+   121	dts_bone_capes
+----
+
+[source,sh]
+----
+    90	dts_bone_capes () {
+    91		echo "dir: dts-bone-capes"
+    92		${git} "${DIR}/patches/dts-bone-capes/0001-capes-ttyO1-ttyO2-ttyO4.patch"
+    93		${git} "${DIR}/patches/dts-bone-capes/0002-capes-Makefile.patch"
+    94	}
+----
+Next is static_capes function.
+[source,sh]
+----
+   122	static_capes
+----
+
+[source,sh]
+----
+    96	static_capes () {
+    97		echo "dir: static-capes"
+    98		${git} "${DIR}/patches/static-capes/0001-Added-Argus-UPS-cape-support.patch"
+    99		${git} "${DIR}/patches/static-capes/0002-Added-Argus-UPS-cape-support-BBW.patch"
+   100	}
+----
+Finally, saucy function.
+[source,sh]
+----
+   124	saucy
+----
+
+[source,sh]
+----
+   102	saucy () {
+   103		echo "dir: saucy"
+   104		#Ubuntu Saucy: so Ubuntu decided to enable almost every Warning -> Error option...
+   105		${git} "${DIR}/patches/saucy/0001-saucy-disable-Werror-pointer-sign.patch"
+   106		${git} "${DIR}/patches/saucy/0002-saucy-error-variable-ilace-set-but-not-used-Werror-u.patch"
+   107	}
+----
+Tell the user the script ran sucessfully.
+[source,sh]
+----
+   129	echo "patch.sh ran successful"
+----
+Now some calls disabled by default & their functions.  First SGX.
+[source,sh]
+----
+   118	#sgx
+    73	sgx () {
+    74		echo "dir: sgx"
+    75		${git} "${DIR}/patches/sgx/0001-reset-Add-driver-for-gpio-controlled-reset-pins.patch"
+    76		${git} "${DIR}/patches/sgx/0002-prcm-port-from-ti-linux-3.12.y.patch"
+    77		${git} "${DIR}/patches/sgx/0003-ARM-DTS-AM335x-Add-SGX-DT-node.patch"
+    78		${git} "${DIR}/patches/sgx/0004-arm-Export-cache-flush-management-symbols-when-MULTI.patch"
+    79		${git} "${DIR}/patches/sgx/0005-hack-port-da8xx-changes-from-ti-3.12-repo.patch"
+    80		${git} "${DIR}/patches/sgx/0006-Revert-drm-remove-procfs-code-take-2.patch"
+    81		${git} "${DIR}/patches/sgx/0007-Changes-according-to-TI-for-SGX-support.patch"
+    82	}
+----
+Function rt.
+[source,sh]
+----
+   127	#rt
+   109	rt () {
+   110		echo "dir: rt"
+   111		${git} "${DIR}/patches/rt/0001-rt-3.14-patchset.patch"
+   112	}
+----
+These are some other functions that are defined, but not used.
+[source,sh]
+----
     37	git_add () {
     38		git add .
     39		git commit -a -m 'testing patchset'
@@ -51,82 +201,4 @@
     49		fi
     50		exit
     51	}
-    52	
-    53	dts () {
-    54		echo "dir: dts"
-    55		${git} "${DIR}/patches/dts/0001-arm-dts-am335x-boneblack-lcdc-add-panel-info.patch"
-    56		${git} "${DIR}/patches/dts/0002-arm-dts-am335x-boneblack-add-cpu0-opp-points.patch"
-    57		${git} "${DIR}/patches/dts/0003-arm-dts-am335x-bone-common-enable-and-use-i2c2.patch"
-    58		${git} "${DIR}/patches/dts/0004-arm-dts-am335x-bone-common-setup-default-pinmux-http.patch"
-    59	}
-    60	
-    61	fixes () {
-    62		echo "dir: fixes"
-    63		${git} "${DIR}/patches/fixes/0001-pinctrl-pinctrl-single-must-be-initialized-early.patch"
-    64	}
-    65	
-    66	usb  () {
-    67		echo "dir: usb"
-    68		${git} "${DIR}/patches/usb/0001-usb-musb-musb_host-Enable-ISOCH-IN-handling-for-AM33.patch"
-    69		${git} "${DIR}/patches/usb/0002-usb-musb-musb_cppi41-Make-CPPI-aware-of-high-bandwid.patch"
-    70		${git} "${DIR}/patches/usb/0003-usb-musb-musb_cppi41-Handle-ISOCH-differently-and-no.patch"
-    71	}
-    72	
-    73	sgx () {
-    74		echo "dir: sgx"
-    75		${git} "${DIR}/patches/sgx/0001-reset-Add-driver-for-gpio-controlled-reset-pins.patch"
-    76		${git} "${DIR}/patches/sgx/0002-prcm-port-from-ti-linux-3.12.y.patch"
-    77		${git} "${DIR}/patches/sgx/0003-ARM-DTS-AM335x-Add-SGX-DT-node.patch"
-    78		${git} "${DIR}/patches/sgx/0004-arm-Export-cache-flush-management-symbols-when-MULTI.patch"
-    79		${git} "${DIR}/patches/sgx/0005-hack-port-da8xx-changes-from-ti-3.12-repo.patch"
-    80		${git} "${DIR}/patches/sgx/0006-Revert-drm-remove-procfs-code-take-2.patch"
-    81		${git} "${DIR}/patches/sgx/0007-Changes-according-to-TI-for-SGX-support.patch"
-    82	}
-    83	
-    84	dts_bone () {
-    85		echo "dir: dts-bone"
-    86		${git} "${DIR}/patches/dts-bone/0001-arm-dts-am335x-bone-common-add-uart2_pins-uart4_pins.patch"
-    87	
-    88	}
-    89	
-    90	dts_bone_capes () {
-    91		echo "dir: dts-bone-capes"
-    92		${git} "${DIR}/patches/dts-bone-capes/0001-capes-ttyO1-ttyO2-ttyO4.patch"
-    93		${git} "${DIR}/patches/dts-bone-capes/0002-capes-Makefile.patch"
-    94	}
-    95	
-    96	static_capes () {
-    97		echo "dir: static-capes"
-    98		${git} "${DIR}/patches/static-capes/0001-Added-Argus-UPS-cape-support.patch"
-    99		${git} "${DIR}/patches/static-capes/0002-Added-Argus-UPS-cape-support-BBW.patch"
-   100	}
-   101	
-   102	saucy () {
-   103		echo "dir: saucy"
-   104		#Ubuntu Saucy: so Ubuntu decided to enable almost every Warning -> Error option...
-   105		${git} "${DIR}/patches/saucy/0001-saucy-disable-Werror-pointer-sign.patch"
-   106		${git} "${DIR}/patches/saucy/0002-saucy-error-variable-ilace-set-but-not-used-Werror-u.patch"
-   107	}
-   108	
-   109	rt () {
-   110		echo "dir: rt"
-   111		${git} "${DIR}/patches/rt/0001-rt-3.14-patchset.patch"
-   112	}
-   113	
-   114	###
-   115	dts
-   116	fixes
-   117	usb
-   118	#sgx
-   119	
-   120	dts_bone
-   121	dts_bone_capes
-   122	static_capes
-   123	
-   124	saucy
-   125	
-   126	#disabled by default
-   127	#rt
-   128	
-   129	echo "patch.sh ran successful"
 ----
