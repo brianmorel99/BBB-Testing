@@ -1,7 +1,9 @@
-[source,sh]
+===== Original File
+* https://raw.githubusercontent.com/RobertCNelson/linux-dev/am33x-v3.14/scripts/git.sh
+
+Copyright notice of Excellent Script !!
+[source, sh]
 ----
-     1	#!/bin/sh -e
-     2	#
      3	# Copyright (c) 2009-2014 Robert Nelson <robertcnelson@gmail.com>
      4	#
      5	# Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -21,23 +23,88 @@
     19	# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
     20	# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
     21	# THE SOFTWARE.
-    22	
+----
+Shell arguement “-e” tells the shell to exit if anything returns non-zero (error) on exit
+[source,sh]
+----
+     1	#!/bin/sh -e
+----
+Set $DIR variable to the directory the script was called from.
+[source,sh]
+----
     23	DIR=$PWD
-    24	
-    25	git_kernel_stable () {
-    26		echo "-----------------------------"
-    27		echo "scripts/git: fetching from: ${linux_stable}"
-    28		git fetch ${linux_stable} master --tags || true
-    29	}
-    30	
-    31	git_kernel_torvalds () {
-    32		echo "-----------------------------"
-    33		echo "scripts/git: pulling from: ${torvalds_linux}"
-    34		git pull ${GIT_OPTS} ${torvalds_linux} master --tags || true
-    35		git tag | grep v${KERNEL_TAG} >/dev/null 2>&1 || git_kernel_stable
-    36	}
-    37	
+----
+Call version.sh to be executed in current shell. (again?)
+[source,sh]
+----
+   161	. ${DIR}/version.sh
+----
+Call system.sh to be executed in current shell. (again?)
+[source,sh]
+----
+   162	. ${DIR}/system.sh
+----
+Set $git_config_user_email variable to what the user has configured in their git.
+[source,sh]
+----
+   164	unset git_config_user_email
+   165	git_config_user_email=$(git config --get user.email || true)
+----
+Set $git_config_user_name variable to what the user has configured in their git.
+[source,sh]
+----
+   167	unset git_config_user_name
+   168	git_config_user_name=$(git config --get user.name || true)
+----
+If either variable is empty, Print error message & exit script.
+[source,sh]
+----
+   170	if [ ! "${git_config_user_email}" ] || [ ! "${git_config_user_name}" ] ; then
+   171		echo "-----------------------------"
+   172		echo "Error: git user.name/user.email not set:"
+   173		echo ""
+   174		echo "For help please read:"
+   175		echo "https://help.github.com/articles/setting-your-username-in-git"
+   176		echo "https://help.github.com/articles/setting-your-email-in-git"
+   177		echo ""
+   178		echo "For example, if your real name and email was: Billy Everteen & me@here.com"
+   179		echo "you would type the following into the terminal window to set it up:"
+   180		echo "-----------------------------"
+   181		echo "git config --global user.name \"Billy Everyteen\""
+   182		echo "git config --global user.email \"me@here.com\""
+   183		echo "-----------------------------"
+   184		exit 1
+   185	fi
+----
+Set up some variables for the git repository locations.
+[source,sh]
+----
+   187	torvalds_linux="https://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git"
+   188	linux_stable="https://git.kernel.org/pub/scm/linux/kernel/git/stable/linux-stable.git"
+----
+Call git_kernel function.
+[source,sh]
+----
+   190	git_kernel
+----
+
+[source,sh]
+----
+    62	git_kernel () {
+----
+Call check_and_or_clone function
+[source,sh]
+----
+    63		check_and_or_clone
+----
+
+[source,sh]
+----
     38	check_and_or_clone () {
+----
+If $LINUX_GIT variable is not set & there is a linux source git repository in users ~/linux-src/ directory set that location as $LINUX_GIT
+[source,sh]
+----
     39		#For Legacy: moving to "${DIR}/ignore/linux-src/" for all new installs
     40		if [ ! "${LINUX_GIT}" ] && [ -f "${HOME}/linux-src/.git/config" ] ; then
     41			echo "-----------------------------"
@@ -45,12 +112,19 @@
     43			echo "using legacy location: ${HOME}/linux-src"
     44			LINUX_GIT="${HOME}/linux-src"
     45		fi
-    46	
+----
+If $LINUX_GIT still isn't set.  Check the default directory to see if the source is their.
+[source,sh]
+----
     47		if [ ! "${LINUX_GIT}" ]; then
     48			if [ -f "${DIR}/ignore/linux-src/.git/config" ] ; then
     49				echo "-----------------------------"
     50				echo "scripts/git: LINUX_GIT not defined in system.sh"
     51				echo "using default location: ${DIR}/ignore/linux-src/"
+----
+If the default directory doesn't have the source.  Clone it into that directory & set $LINUX_GIT
+[source,sh]
+----
     52			else
     53				echo "-----------------------------"
     54				echo "scripts/git: LINUX_GIT not defined in system.sh"
@@ -60,10 +134,10 @@
     58			LINUX_GIT="${DIR}/ignore/linux-src"
     59		fi
     60	}
-    61	
-    62	git_kernel () {
-    63		check_and_or_clone
-    64	
+----
+Check for an mis-configuration.  If so, unset $LINUX_GIT and restart function.
+[source,sh]
+----
     65		#In the past some users set LINUX_GIT = DIR, fix that...
     66		if [ -f "${LINUX_GIT}/version.sh" ] ; then
     67			unset LINUX_GIT
@@ -71,7 +145,10 @@
     69			echo "scripts/git: Warning: LINUX_GIT is set as DIR:"
     70			check_and_or_clone
     71		fi
-    72	
+----
+Make sure the user has permission to write into the directory.
+[source,sh]
+----	
     73		#is the git directory user writable?
     74		if [ ! -w "${LINUX_GIT}" ] ; then
     75			unset LINUX_GIT
@@ -79,7 +156,10 @@
     77			echo "scripts/git: Warning: LINUX_GIT is not writable:"
     78			check_and_or_clone
     79		fi
-    80	
+----
+Verify the source code pointed to by $LINUX_GIT is a valid git repo.  If not, unset $LINUX_GIT & restart the function.
+[source,sh]
+----
     81		#is it actually a git repo?
     82		if [ ! -f "${LINUX_GIT}/.git/config" ] ; then
     83			unset LINUX_GIT
@@ -87,7 +167,10 @@
     85			echo "scripts/git: Warning: LINUX_GIT is an invalid tree:"
     86			check_and_or_clone
     87		fi
-    88	
+----
+The source code directory is now set.  Change into that directory & try updating.
+[source,sh]
+----
     89		cd ${LINUX_GIT}/
     90		echo "-----------------------------"
     91		echo "scripts/git: Debug: LINUX_GIT is setup as..."
@@ -97,13 +180,27 @@
     95		echo "-----------------------------"
     96		echo "scripts/git: Updating LINUX_GIT tree via: git fetch"
     97		git fetch || true
+----
+Change back to the previous directory.
+[source,sh]
+----
     98		cd -
-    99	
+----
+Check to see if their is a git repository in $DIR/KERNEL.  If not, delete it.
+[source,sh]
+----
    100		if [ ! -f "${DIR}/KERNEL/.git/config" ] ; then
    101			rm -rf ${DIR}/KERNEL/ || true
+----
+Then set up a repository their that is basically a clone of the current repo in $LINUX_GIT
+[source,sh]
+----
    102			git clone --shared ${LINUX_GIT} ${DIR}/KERNEL
    103		fi
-   104	
+----
+Need to check.
+[source,sh]
+----
    105		#Automaticly, just recover the git repo from a git crash
    106		if [ -f "${DIR}/KERNEL/.git/index.lock" ] ; then
    107			rm -rf ${DIR}/KERNEL/ || true
@@ -159,35 +256,25 @@
    157	
    158		cd ${DIR}/
    159	}
+
+
+    24	
+    25	git_kernel_stable () {
+    26		echo "-----------------------------"
+    27		echo "scripts/git: fetching from: ${linux_stable}"
+    28		git fetch ${linux_stable} master --tags || true
+    29	}
+    30	
+    31	git_kernel_torvalds () {
+    32		echo "-----------------------------"
+    33		echo "scripts/git: pulling from: ${torvalds_linux}"
+    34		git pull ${GIT_OPTS} ${torvalds_linux} master --tags || true
+    35		git tag | grep v${KERNEL_TAG} >/dev/null 2>&1 || git_kernel_stable
+    36	}
+    37	
+
+    61	
+
    160	
-   161	. ${DIR}/version.sh
-   162	. ${DIR}/system.sh
-   163	
-   164	unset git_config_user_email
-   165	git_config_user_email=$(git config --get user.email || true)
-   166	
-   167	unset git_config_user_name
-   168	git_config_user_name=$(git config --get user.name || true)
-   169	
-   170	if [ ! "${git_config_user_email}" ] || [ ! "${git_config_user_name}" ] ; then
-   171		echo "-----------------------------"
-   172		echo "Error: git user.name/user.email not set:"
-   173		echo ""
-   174		echo "For help please read:"
-   175		echo "https://help.github.com/articles/setting-your-username-in-git"
-   176		echo "https://help.github.com/articles/setting-your-email-in-git"
-   177		echo ""
-   178		echo "For example, if your real name and email was: Billy Everteen & me@here.com"
-   179		echo "you would type the following into the terminal window to set it up:"
-   180		echo "-----------------------------"
-   181		echo "git config --global user.name \"Billy Everyteen\""
-   182		echo "git config --global user.email \"me@here.com\""
-   183		echo "-----------------------------"
-   184		exit 1
-   185	fi
-   186	
-   187	torvalds_linux="https://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git"
-   188	linux_stable="https://git.kernel.org/pub/scm/linux/kernel/git/stable/linux-stable.git"
-   189	
-   190	git_kernel
+
 ----

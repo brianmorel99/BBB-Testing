@@ -1,15 +1,28 @@
+===== Original File
+* https://raw.githubusercontent.com/RobertCNelson/linux-dev/am33x-v3.14/version.sh
+
+Shell arguement “-e” tells the shell to exit if anything returns non-zero (error) on exit
 [source,sh]
 ----
      1	#!/bin/sh
-     2	#
+----
+Set $ARCH variable to the architecture of the current machine.
+[source,sh]
+----
      3	ARCH=$(uname -m)
-     4	
+----
+Test to see if the program nproc exists.  If so set $CORES to it's output.  If not, set $CORES to '1'
+[source,sh]
+----
      5	if [ $(which nproc) ] ; then
      6		CORES=$(nproc)
      7	else
      8		CORES=1
      9	fi
-    10	
+----
+Pretty self explanitory.  Set some variables if special handling of git is needed.
+[source,sh]
+----
     11	#Debian 7 (Wheezy): git version 1.7.10.4 and later needs "--no-edit"
     12	unset GIT_OPTS
     13	unset GIT_NOEDIT
@@ -18,24 +31,39 @@
     16	if [ "${GIT_NOEDIT}" ] ; then
     17		GIT_OPTS="${GIT_OPTS} --no-edit"
     18	fi
-    19	
+----
+set $config variable to a default or base configuration file.
+[source,sh]
+----
     20	config="omap2plus_defconfig"
-    21	
+----
+Set $toolchain variable to the current default cross compiler.
+[source,sh]
+----
     22	#toolchain="arm9_gcc_4_7"
     23	#toolchain="gcc_arm_embedded_4_8"
     24	#toolchain="gcc_linaro_eabi_4_8"
     25	#toolchain="gcc_linaro_gnueabi_4_6"
     26	#toolchain="gcc_linaro_gnueabihf_4_7"
     27	toolchain="gcc_linaro_gnueabihf_4_8"
-    28	
+----
+Set some variables specific to the kernel that's going to be built.
+[source,sh]
+----
     29	#Kernel/Build
     30	KERNEL_REL=3.14
     31	KERNEL_TAG=${KERNEL_REL}.1
     32	BUILD=bone2
-    33	
+----
+Variable for a specific git commit in the repo, not used here.
+[source,sh]
+----
     34	#v3.X-rcX + upto SHA
     35	#KERNEL_SHA="e6036c0b88962df82a8853971b86a55f09faef40"
-    36	
+----
+More Variable set up to be used later.
+[source,sh]
+----
     37	#git branch
     38	BRANCH="am33x-v3.14"
     39	
