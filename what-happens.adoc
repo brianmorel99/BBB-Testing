@@ -1,5 +1,7 @@
 What happens:
 
+[source,sh]
+----
 ~$ ./build_kernel
 	DIR=/home/bjmorel/linux-dev
 	mkdir -p /home/bjmorel/linux-dev/deploy/
@@ -375,3 +377,4 @@ What happens:
 	echo "Script Complete"
 	echo "eewiki.net: [user@localhost:~$ export kernel_version=${KERNEL_UTS}]"
 	echo "-----------------------------"
+----
