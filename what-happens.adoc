@@ -1,0 +1,377 @@
+What happens:
+
+~$ ./build_kernel
+	DIR=/home/bjmorel/linux-dev
+	mkdir -p /home/bjmorel/linux-dev/deploy/
+	/bin/sh -e ${DIR}/tools/host_det.sh || { exit 1 ; }
+
+		DIST="Debian Based"
+		debian="debian"
+		echo "${debian}"
+		BUILD_HOST=debian
+		which lsb_release
+		lsb_release -sd
+		echo + Detected build host [Ubuntu 14.04 LTS]
+		uname -m
+		echo + host: [x86_64]
+		git rev-parse HEAD
+		echo + git HEAD commit: [a46db7b10b8e06628a12dc64ee9ae6d38e9d814f]
+		unset deb_pkgs
+		pkg=bc
+		LC_ALL=C dpkg --list | awk {print $2} | grep ^bc$ >/dev/null
+		pkg=build-essential
+		LC_ALL=C dpkg --list | awk {print $2} | grep ^build-essential$ >/dev/null
+		pkg=device-tree-compiler
+		LC_ALL=C dpkg --list | awk {print $2} | grep ^device-tree-compiler$ >/dev/null
+		pkg=fakeroot
+		LC_ALL=C dpkg --list | awk {print $2} | grep ^fakeroot$ >/dev/null
+		pkg=lsb-release
+		LC_ALL=C dpkg --list | awk {print $2} | grep ^lsb-release$ >/dev/null
+		pkg=lzma
+		LC_ALL=C dpkg --list | awk {print $2} | grep ^lzma$ >/dev/null
+		pkg=lzop
+		LC_ALL=C dpkg --list | awk {print $2} | grep ^lzop$ >/dev/null
+		pkg=man-db
+		LC_ALL=C dpkg --list | awk {print $2} | grep ^man-db$ >/dev/null
+		unset warn_dpkg_ia32
+		unset stop_pkg_search
+		which lsb_release
+		lsb_release -cs | sed s/\//_/g
+		deb_distro=trusty
+		unset error_unknown_deb_distro
+		unset warn_eol_distro
+		which lsb_release
+		LC_ALL=C dpkg --print-architecture
+		deb_arch=amd64
+		pkg=u-boot-tools
+		LC_ALL=C dpkg --list | awk {print $2} | grep ^u-boot-tools$ >/dev/null
+		pkg=libncurses5-dev:amd64
+		LC_ALL=C dpkg --list | awk {print $2} | grep ^libncurses5-dev:amd64$ >/dev/null
+		unset dpkg_multiarch
+		pkg=libc6:i386
+		LC_ALL=C dpkg --list | awk {print $2} | grep ^libc6:i386$ >/dev/null
+		pkg=libncurses5:i386
+		LC_ALL=C dpkg --list | awk {print $2} | grep ^libncurses5:i386$ >/dev/null
+		pkg=libstdc++6:i386
+		LC_ALL=C dpkg --list | awk {print $2} | grep ^libstdc++6:i386$ >/dev/null
+		pkg=zlib1g:i386
+		LC_ALL=C dpkg --list | awk {print $2} | grep ^zlib1g:i386$ >/dev/null
+		dpkg_multiarch=1
+		unset check_foreign
+		LC_ALL=C dpkg --print-foreign-architectures
+		check_foreign=i386
+		
+	cp /home/bjmorel/linux-dev/system.sh.sample /home/bjmorel/linux-dev/system.sh
+	unset CC
+	unset LINUX_GIT
+	. ${DIR}/system.sh
+	uname -m 
+	ARCH=x86_64
+	
+	/bin/sh -e "/home/bjmorel/linux-dev/scripts/gcc.sh" || { exit 1 ; }
+		uname -m
+		ARCH=x86_64
+		DIR=/home/bjmorel/linux-dev/
+		. /home/bjmorel/linux-dev/system.sh
+			uname -m
+			ARCH=x86_64
+			. /home/bjmorel/linux-dev/version.sh
+				uname -m
+				ARCH=x86_64
+				which nproc
+				nproc
+				CORES=8
+				unset GIT_OPTS
+				unset GIT_NOEDIT
+				LC_ALL=C git help pull | grep -m 1 -e "--no-edit" >/dev/null 2>&1
+				GIT_NOEDIT=1
+				GIT_OPTS= --no-edit
+				config=omap2plus_defconfig
+				toolchain=gcc_linaro_gnueabihf_4_8
+				KERNEL_REL=3.14
+				KERNEL_TAG=3.14.2
+				BUILD=bone2
+				BRANCH=am33x-v3.14
+				BUILDREV=1.0
+				DISTRO=cross
+				DEBARCH=armhf
+		gcc_version=4.8
+		release=2014.04
+		toolchain_name=gcc-linaro-arm-linux-gnueabihf
+		site=https://releases.linaro.org
+		version=14.04/components/toolchain/binaries
+		directory=gcc-linaro-arm-linux-gnueabihf-4.8-2014.04_linux
+		filename=gcc-linaro-arm-linux-gnueabihf-4.8-2014.04_linux.tar.xz
+		datestamp=2014.04-gcc-linaro-arm-linux-gnueabihf
+		binary=bin/arm-linux-gnueabihf-
+		WGET=wget -c --directory-prefix=/home/bjmorel/linux-dev/dl/
+		echo Installing: gcc-linaro-arm-linux-gnueabihf
+		echo -----------------------------
+		wget -c --directory-prefix=/home/bjmorel/linux-dev/dl/ https://releases.linaro.org/14.04/components/toolchain/binaries/gcc-linaro-arm-linux-gnueabihf-4.8-2014.04_linux.tar.xz
+		tar -xf /home/bjmorel/linux-dev/dl/gcc-linaro-arm-linux-gnueabihf-4.8-2014.04_linux.tar.xz -C /home/bjmorel/linux-dev/dl/
+		touch /home/bjmorel/linux-dev/dl/gcc-linaro-arm-linux-gnueabihf-4.8-2014.04_linux/2014.04-gcc-linaro-arm-linux-gnueabihf
+		CC=/home/bjmorel/linux-dev/dl/gcc-linaro-arm-linux-gnueabihf-4.8-2014.04_linux/bin/arm-linux-gnueabihf-
+		LC_ALL=C /home/bjmorel/linux-dev/dl/gcc-linaro-arm-linux-gnueabihf-4.8-2014.04_linux/bin/arm-linux-gnueabihf-gcc -v 1>&1 | grep "Target:" | grep arm
+		GCC_TEST=Target: arm-linux-gnueabihf
+		echo -----------------------------
+		LC_ALL=C /home/bjmorel/linux-dev/dl/gcc-linaro-arm-linux-gnueabihf-4.8-2014.04_linux/bin/arm-linux-gnueabihf-gcc --version
+		echo scripts/gcc: Using: arm-linux-gnueabihf-gcc (crosstool-NG linaro-1.13.1-4.8-2014.04 - Linaro GCC 4.8-2014.04) 4.8.3 20140401 (prerelease)
+		echo -----------------------------
+		echo CC=/home/bjmorel/linux-dev/dl/gcc-linaro-arm-linux-gnueabihf-4.8-2014.04_linux/bin/arm-linux-gnueabihf- > /home/bjmorel/linux-dev/.CC
+
+	. /home/bjmorel/linux-dev/.CC
+		CC=/home/bjmorel/linux-dev/dl/gcc-linaro-arm-linux-gnueabihf-4.8-2014.04_linux/bin/arm-linux-gnueabihf-
+	echo "debug: CC=${CC}"
+	. /home/bjmorel/linux-dev/version.sh
+		uname -m
+		ARCH=x86_64
+		which nproc
+		nproc
+		CORES=8
+		unset GIT_OPTS
+		unset GIT_NOEDIT
+		LC_ALL=C git help pull | grep -m 1 -e "--no-edit" >/dev/null 2>&1
+		GIT_NOEDIT=1
+		GIT_OPTS= --no-edit
+		config=omap2plus_defconfig
+		toolchain=gcc_linaro_gnueabihf_4_8
+		KERNEL_REL=3.14
+		KERNEL_TAG=3.14.2
+		BUILD=bone2
+		BRANCH=am33x-v3.14
+		BUILDREV=1.0
+		DISTRO=cross
+		DEBARCH=armhf
+	export LINUX_GIT
+
+	FULL_REBUILD=1
+	/bin/sh -e "${DIR}/scripts/git.sh" || { exit 1 ; }
+		DIR=/home/bjmorel/linux-dev
+		. /home/bjmorel/linux-dev/version.sh
+			uname -m
+			ARCH=x86_64
+			which nproc
+			nproc
+			CORES=8
+			unset GIT_OPTS
+			unset GIT_NOEDIT
+			LC_ALL=C git help pull | grep -m 1 -e "--no-edit" >/dev/null 2>&1
+			GIT_NOEDIT=1
+			GIT_OPTS= --no-edit
+			config=omap2plus_defconfig
+			toolchain=gcc_linaro_gnueabihf_4_8
+			KERNEL_REL=3.14
+			KERNEL_TAG=3.14.2
+			BUILD=bone2
+			BRANCH=am33x-v3.14
+			BUILDREV=1.0
+			DISTRO=cross
+			DEBARCH=armhf
+		. /home/bjmorel/linux-dev/system.sh
+			uname -m
+			ARCH=x86_64
+		unset git_config_user_email
+		git config --get user.email
+		git_config_user_email=brianmorel99@gmail.com
+		unset git_config_user_name
+		git config --get user.name
+		git_config_user_name=Brian Morel
+		torvalds_linux=https://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git
+		linux_stable=https://git.kernel.org/pub/scm/linux/kernel/git/stable/linux-stable.git
+		echo -----------------------------
+		echo scripts/git: LINUX_GIT not defined in system.sh
+		echo cloning https://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git into default location: /home/bjmorel/linux-dev/ignore/linux-src
+		git clone https://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git /home/bjmorel/linux-dev/ignore/linux-src
+		LINUX_GIT=/home/bjmorel/linux-dev/ignore/linux-src
+		cd /home/bjmorel/linux-dev/ignore/linux-src/
+		echo -----------------------------
+		echo scripts/git: Debug: LINUX_GIT is setup as...
+		pwd
+		echo -----------------------------
+		cat .git/config
+		echo -----------------------------
+		echo scripts/git: Updating LINUX_GIT tree via: git fetch
+		git fetch
+		cd -
+		rm -rf /home/bjmorel/linux-dev/KERNEL/
+		git clone --shared /home/bjmorel/linux-dev/ignore/linux-src /home/bjmorel/linux-dev/KERNEL
+		cd /home/bjmorel/linux-dev/KERNEL/
+		git am --abort
+		echo git tree is clean...
+		git add --all
+		git commit --allow-empty -a -m empty cleanup commit
+		git reset --hard HEAD
+		git checkout master -f
+		git pull --no-edit
+		git tag | grep v3.14.2 | grep -v rc >/dev/null 2>$1
+		echo -----------------------------
+		echo scripts/git: pulling from: https://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git
+		git pull --no-edit https://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git master --tags
+		git tag | grep v3.14.2 >/dev/null
+		git_kernel_stable
+		echo -----------------------------
+		echo scripts/git: fetching from: https://git.kernel.org/pub/scm/linux/kernel/git/stable/linux-stable.git
+		git fetch https://git.kernel.org/pub/scm/linux/kernel/git/stable/linux-stable.git master --tags
+		unset git_branch_has_list
+		
+		LC_ALL=C git help branch | grep -m 1 -e "--list" >/dev/null 2>&1 && git_branch_has_list=1
+		
+		LC_ALL=C git help branch | grep -m 1 -e --list >/dev/null 2>$1
+		git_branch_has_list=1
+		git branch --list v3.14.2-bone2
+		test_for_branch=
+		git checkout v3.14.2 -b v3.14.2-bone2
+		git describe
+		cd /home/bjmorel/linux-dev/
+
+	cd /home/bjmorel/linux-dev/KERNEL
+	export DIR GIT_OPTS
+	/bin/sh -e /home/bjmorel/linux-dev/patch.sh
+		git="git am"
+		. /home/bjmorel/linux-dev/system.sh
+			uname -m
+			ARCH=x86_64
+			. /home/bjmorel/linux-dev/version.sh
+				uname -m
+				ARCH=x86_64
+				which nproc
+				nproc
+				CORES=8
+				unset GIT_OPTS
+				unset GIT_NOEDIT
+				LC_ALL=C git help pull | grep -m 1 -e "--no-edit" >/dev/null 2>&1
+				GIT_NOEDIT=1
+				GIT_OPTS= --no-edit
+				config=omap2plus_defconfig
+				toolchain=gcc_linaro_gnueabihf_4_8
+				KERNEL_REL=3.14
+				KERNEL_TAG=3.14.2
+				BUILD=bone2
+				BRANCH=am33x-v3.14
+				BUILDREV=1.0
+				DISTRO=cross
+				DEBARCH=armhf
+		echo "Starting patch.sh"
+		echo "dir: dts"
+		git am "/home/bjmorel/linux-dev/patches/dts/0001-arm-dts-am335x-boneblack-lcdc-add-panel-info.patch"
+		git am "/home/bjmorel/linux-dev/patches/dts/0002-arm-dts-am335x-boneblack-add-cpu0-opp-points.patch"
+		git am "/home/bjmorel/linux-dev/patches/dts/0003-arm-dts-am335x-bone-common-enable-and-use-i2c2.patch"
+		git am "/home/bjmorel/linux-dev/patches/dts/0004-arm-dts-am335x-bone-common-setup-default-pinmux-http.patch"
+		echo "dir: fixes"
+		git am "/home/bjmorel/linux-dev/patches/fixes/0001-pinctrl-pinctrl-single-must-be-initialized-early.patch"
+		echo "dir: usb"
+		git am "/home/bjmorel/linux-dev/patches/usb/0001-usb-musb-musb_host-Enable-ISOCH-IN-handling-for-AM33.patch"
+		git am "/home/bjmorel/linux-dev/patches/usb/0002-usb-musb-musb_cppi41-Make-CPPI-aware-of-high-bandwid.patch"
+		git am "/home/bjmorel/linux-dev/patches/usb/0003-usb-musb-musb_cppi41-Handle-ISOCH-differently-and-no.patch"
+		echo "dir: dts-bone"
+		git am "/home/bjmorel/linux-dev/patches/dts-bone/0001-arm-dts-am335x-bone-common-add-uart2_pins-uart4_pins.patch"
+		echo "dir: dts-bone-capes"
+		git am "/home/bjmorel/linux-dev/patches/dts-bone-capes/0001-capes-ttyO1-ttyO2-ttyO4.patch"
+		git am "/home/bjmorel/linux-dev/patches/dts-bone-capes/0002-capes-Makefile.patch"
+		echo "dir: static-capes"
+		git am "/home/bjmorel/linux-dev/patches/static-capes/0001-Added-Argus-UPS-cape-support.patch"
+		git am "/home/bjmorel/linux-dev/patches/static-capes/0002-Added-Argus-UPS-cape-support-BBW.patch"
+		echo "dir: saucy"
+		git am "/home/bjmorel/linux-dev/patches/saucy/0001-saucy-disable-Werror-pointer-sign.patch"
+		git am "/home/bjmorel/linux-dev/patches/saucy/0002-saucy-error-variable-ilace-set-but-not-used-Werror-u.patch"
+		echo "patch.sh ran successful"
+		
+	git add --all
+	git commit --allow-empty -a -m 3.14.2-bone2 patchset
+	cd /home/bjmorel/linux-dev/
+	cd /home/bjmorel/linux-dev/KERNEL/
+	make ARCH=arm CROSS_COMPILE=/home/bjmorel/linux-dev/dl/gcc-linaro-arm-linux-gnueabihf-4.8-2014.04_linux/bin/arm-linux-gnueabihf- distclean
+	make ARCH=arm CROSS_COMPILE=/home/bjmorel/linux-dev/dl/gcc-linaro-arm-linux-gnueabihf-4.8-2014.04_linux/bin/arm-linux-gnueabihf- omap2plus_defconfig
+	cp -v .config /home/bjmorel/linux-dev/patches/ref_omap2plus_defconfig
+	cp -v /home/bjmorel/linux-dev/patches/defconfig .config
+	cd /home/bjmorel/linux-dev/
+	cd /home/bjmorel/linux-dev/KERNEL/
+	make ARCH=arm CROSS_COMPILE=/home/bjmorel/linux-dev/dl/gcc-linaro-arm-linux-gnueabihf-4.8-2014.04_linux/bin/arm-linux-gnueabihf- menuconfig
+	cd /home/bjmorel/linux-dev/KERNEL/
+	cp -v .config /home/bjmorel/linux-dev/patches/defconfig
+	cd /home/bjmorel/linux-dev/
+	image=zImage
+	unset address
+	cd /home/bjmorel/linux-dev/KERNEL/
+	echo -----------------------------
+	echo make -j8 ARCH=arm LOCALVERSION=-bone2 CROSS_COMPILE=/home/bjmorel/linux-dev/dl/gcc-linaro-arm-linux-gnueabihf-4.8-2014.04_linux/bin/arm-linux-gnueabihf-  zImage modules
+	echo -----------------------------
+	make -j8 ARCH=arm LOCALVERSION=-bone2 CROSS_COMPILE=/home/bjmorel/linux-dev/dl/gcc-linaro-arm-linux-gnueabihf-4.8-2014.04_linux/bin/arm-linux-gnueabihf- zImage modules
+	unset DTBS 
+	cat /home/bjmorel/linux-dev/KERNEL/arch/arm/Makefile | grep dtbs: >/dev/null 2>&1
+	DTBS=enable
+	unset has_dtbs_install
+	echo -----------------------------
+	echo make -j8 ARCH=arm LOCALVERSION=-bone2 CROSS_COMPILE=/home/bjmorel/linux-dev/dl/gcc-linaro-arm-linux-gnueabihf-4.8-2014.04_linux/bin/arm-linux-gnueabihf- dtbs
+	echo -----------------------------
+	make -j8 ARCH=arm LOCALVERSION=-bone2 CROSS_COMPILE=/home/bjmorel/linux-dev/dl/gcc-linaro-arm-linux-gnueabihf-4.8-2014.04_linux/bin/arm-linux-gnueabihf- dtbs
+	ls arch/arm/boot/* | grep dtb >/dev/null 2>&1 || unset DTBS
+	cat /home/bjmorel/linux-dev/KERNEL/include/generated/utsrelease.h | awk {print $3} | sed s/\"//g
+	KERNEL_UTS=3.14.2-bone2
+	cp -v arch/arm/boot/zImage /home/bjmorel/linux-dev/deploy/3.14.2-bone2.zImage
+	cp -v .config /home/bjmorel/linux-dev/deploy/config-3.14.2-bone2
+	cd /home/bjmorel/linux-dev/
+	ls -lh /home/bjmorel/linux-dev/deploy/3.14.2-bone2.zImage
+	pkg=modules
+	cd /home/bjmorel/linux-dev/KERNEL/
+	deployfile=-modules.tar.gz
+	tar_options=--create --gzip --file
+	mkdir -p /home/bjmorel/linux-dev/deploy/tmp
+	echo -----------------------------
+	echo Building modules archive...
+	make -s ARCH=arm CROSS_COMPILE=/home/bjmorel/linux-dev/dl/gcc-linaro-arm-linux-gnueabihf-4.8-2014.04_linux/bin/arm-linux-gnueabihf- modules_install INSTALL_MOD_PATH=/home/bjmorel/linux-dev/deploy/tmp
+	echo Compressing 3.14.2-bone2-modules.tar.gz...
+	cd /home/bjmorel/linux-dev/deploy/tmp
+	tar --create --gzip --file ../3.14.2-bone2-modules.tar.gz lib
+	cd /home/bjmorel/linux-dev/
+	rm -rf /home/bjmorel/linux-dev/deploy/tmp
+	ls -lh /home/bjmorel/linux-dev/deploy/3.14.2-bone2-modules.tar.gz
+	pkg=firmware
+	cd /home/bjmorel/linux-dev/KERNEL/
+	deployfile=-firmware.tar.gz
+	tar_options=--create --gzip --file
+	mkdir -p /home/bjmorel/linux-dev/deploy/tmp
+	echo -----------------------------
+	echo Building firmware archive...
+	make -s ARCH=arm CROSS_COMPILE=/home/bjmorel/linux-dev/dl/gcc-linaro-arm-linux-gnueabihf-4.8-2014.04_linux/bin/arm-linux-gnueabihf- firmware_install INSTALL_FW_PATH=/home/bjmorel/linux-dev/deploy/tmp
+	echo Compressing 3.14.2-bone2-firmware.tar.gz...
+	cd /home/bjmorel/linux-dev/deploy/tmp
+	tar --create --gzip --file ../3.14.2-bone2-firmware.tar.gz 3com acenic adaptec advansys atmsar11.fw av7110 bnx2 bnx2x cis cpia2 cxgb3 dsp56k e100 edgeport emi26 emi62 ess kaweth keyspan keyspan_pda korg matrox mts_cdma.fw mts_edge.fw mts_gsm.fw myricom ositech qlogic r128 radeon sb16 sun tehuti ti_3410.fw ti_5052.fw tigon ttusb-budget vicam whiteheat.fw whiteheat_loader.fw yam yamaha
+	cd /home/bjmorel/linux-dev/
+	rm -rf /home/bjmorel/linux-dev/deploy/tmp
+	ls -lh /home/bjmorel/linux-dev/deploy/3.14.2-bone2-firmware.tar.gz
+	pkg=dtbs
+	cd /home/bjmorel/linux-dev/KERNEL/
+	deployfile=-dtbs.tar.gz
+	tar_options=--create --gzip --file
+	mkdir -p /home/bjmorel/linux-dev/deploy/tmp
+	echo -----------------------------
+	echo Building dtbs archive...
+	find ./arch/arm/boot/ -iname *.dtb -exec cp -v {} /home/bjmorel/linux-dev/deploy/tmp/ ;
+	echo Compressing 3.14.2-bone2-dtbs.tar.gz...
+	cd /home/bjmorel/linux-dev/deploy/tmp
+	tar --create --gzip --file ../3.14.2-bone2-dtbs.tar.gz am335x-base0033.dtb am335x-bone-cape-bone-argus.dtb am335x-bone-ttyO1.dtb am335x-bone-ttyO2.dtb am335x-bone-ttyO4.dtb am335x-bone.dtb am335x-boneblack-cape-bone-argus.dtb am335x-boneblack-ttyO1.dtb am335x-boneblack-ttyO2.dtb am335x-boneblack-ttyO4.dtb am335x-boneblack.dtb am335x-evm.dtb am335x-evmsk.dtb am335x-nano.dtb am3517-evm.dtb am3517_mt_ventoux.dtb am43x-epos-evm.dtb dra7-evm.dtb omap2420-h4.dtb omap2420-n800.dtb omap2420-n810-wimax.dtb omap2420-n810.dtb omap2430-sdp.dtb omap3-beagle-xm.dtb omap3-beagle.dtb omap3-cm-t3730.dtb omap3-devkit8000.dtb omap3-evm-37xx.dtb omap3-evm.dtb omap3-gta04.dtb omap3-igep0020.dtb omap3-igep0030.dtb omap3-ldp.dtb omap3-n9.dtb omap3-n900.dtb omap3-n950.dtb omap3-overo-storm-tobi.dtb omap3-overo-tobi.dtb omap3-sbc-t3730.dtb omap3-zoom3.dtb omap3430-sdp.dtb omap4-panda-a4.dtb omap4-panda-es.dtb omap4-panda.dtb omap4-sdp-es23plus.dtb omap4-sdp.dtb omap4-var-som.dtb omap5-uevm.dtb
+	cd /home/bjmorel/linux-dev/
+	rm -rf /home/bjmorel/linux-dev/deploy/tmp
+	ls -lh /home/bjmorel/linux-dev/deploy/3.14.2-bone2-dtbs.tar.gz
+	echo -----------------------------
+	echo Script Complete
+	echo eewiki.net: [user@localhost:~$ export kernel_version=3.14.2-bone2]
+	echo -----------------------------
+	
+
+
+
+
+
+
+
+	make_modules_pkg
+	make_firmware_pkg
+	if [ "x${DTBS}" = "xenable" ] ; then
+		make_dtbs_pkg
+	fi
+	echo "-----------------------------"
+	echo "Script Complete"
+	echo "eewiki.net: [user@localhost:~$ export kernel_version=${KERNEL_UTS}]"
+	echo "-----------------------------"
